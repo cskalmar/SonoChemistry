@@ -3,6 +3,8 @@
 
 #define PI 3.14159265358979323846
 
+//&F[3] = omega;
+
 // SYSTEM
 template <class Precision>
 __forceinline__ __device__ void PerThread_OdeFunction(\
@@ -14,14 +16,8 @@ __forceinline__ __device__ void PerThread_OdeFunction(\
 		F[i] = 0.0;
 
 	Precision X_conc[NumberOfMolecules];
-	Precision x[NumberOfMolecules];
-	Precision C_v[NumberOfMolecules];
-	Precision C_p[NumberOfMolecules];
 	Precision H[NumberOfMolecules];
 	Precision S_0[NumberOfMolecules];
-	Precision omega[NumberOfMolecules];
-
-//	Precision TmpColumnVector[NumberOfReactions];
 
 	Precision Temp 		= X[2] * sPAR[0];
 	for (int k = 0; k < NumberOfMolecules; k++)
@@ -29,30 +25,38 @@ __forceinline__ __device__ void PerThread_OdeFunction(\
 
 	Precision M 		= sum(X_conc, NumberOfMolecules);
 	Precision rM		= 1.0 / M;
-	for (int k = 0; k < NumberOfMolecules; k++)
-		x[k] 			= X_conc[k] * rM;
-	Precision W_mean	= SumCoeffProd(x, 		&sPAR[1], NumberOfMolecules);
 	Precision Rho_mean	= SumCoeffProd(X_conc, 	&sPAR[1], NumberOfMolecules);
+	// Precision W_mean	= Rho_mean * rM;
 
 	Precision p			= M * sPAR[11] * Temp * 0.1;
-	CalculateThermoDynamics(C_v, C_p, H, S_0, Temp, sPAR[11]);
-	Precision C_v_mean	= SumCoeffProd(C_v, x, NumberOfMolecules);
-//	C_v_mean			= 2.1148e8;
-	Precision C_p_mean	= SumCoeffProd(C_p, x, NumberOfMolecules);
-	Precision c_p_mean	= C_p_mean / W_mean;
+	Precision C_p_mean	= 0.0;
+	CalculateThermoDynamics(C_p_mean, H, S_0, X_conc, Temp, sPAR[11]);
+	C_p_mean			*= rM;
+	Precision C_v_mean	= C_p_mean - sPAR[11];
 
-	Precision Heat		= ThermalConduction(X[0] * cPAR[15], X[1] * cPAR[14] * cPAR[15], x, sPAR, Temp, c_p_mean, Rho_mean);
-	Precision m_net_mol	= Evaporation(sPAR, Temp, p, x);
+	Precision lambda_mean = (X_conc[2] * sPAR[13] + X_conc[4] * sPAR[14] +  X_conc[5] * sPAR[15] +  X_conc[7] * sPAR[16]) * rM;
+	Precision Heat		= ThermalConduction(X[0] * cPAR[15], X[1] * cPAR[14] * cPAR[15], lambda_mean, sPAR, Temp, C_p_mean * M);
+	Precision m_net_mol	= Evaporation(sPAR, Temp, p * X_conc[5] * rM);
 
-	Reactions(omega, Temp, X_conc, sPAR, S_0, H);
+	Reactions(&F[3], Temp, X_conc, sPAR, S_0, H);
 	Precision rX0		= 1.0 / X[0];
 	Precision rX0pc15	= rX0 / cPAR[15];
-	Precision dTdt		= (-SumCoeffProd(H, omega, NumberOfMolecules) - p * 30.0 * X[1] * rX0 * cPAR[14] + \
-								30.0 * rX0pc15 * Heat) / (M * C_v_mean);
+	Precision dTdt		= (-SumCoeffProd(H, &F[3], NumberOfMolecules) - p * 30.0 * X[1] * rX0 * cPAR[14] + 30.0 * rX0pc15 * Heat) / (M * C_v_mean);
 	F[2]				= dTdt / cPAR[14] / sPAR[0];
 
+	Precision p_inf 	= sPAR[12] + cPAR[6] * sin(2.0 * PI * T) + cPAR[7] * sin(cPAR[8] * T + cPAR[9]);
+	Precision p_inf_dot = cPAR[10] * cos(2.0 * PI * T) + cPAR[11] * cos(cPAR[8] * T + cPAR[9]);
+	Precision p_L 		= p - cPAR[12] * rX0 - cPAR[13] * X[1] * rX0;
+	Precision dpdt 		= p * (sum(&F[3], NumberOfMolecules) * rM + dTdt / Temp - 3.0 * X[1] * rX0 * cPAR[14]);
+
+	Precision Nom 		= (p_L - p_inf) / cPAR[0] * rX0 + (p - p_inf) * X[1] / cPAR[1] * rX0 + (dpdt - p_inf_dot) / cPAR[2] - (1.0 - cPAR[3] * X[1]) * 1.5 * X[1] * X[1] * rX0;
+	Precision Den 		= 1.0 - cPAR[4] * X[1] + cPAR[5] * rX0;
+
+	F[0] 				= X[1];
+	F[1] 				= Nom / Den;
+
 	for (int k = 0; k < NumberOfMolecules; k++)
-		F[k+3] 			= omega[k] - X_conc[k] * 3.0 * X[1] * rX0 * cPAR[14];
+		F[k+3] 			-= X_conc[k] * 3.0 * X[1] * rX0 * cPAR[14];
 
 	F[8] 				+= m_net_mol * 3.0 * rX0pc15 * 1.0e-6;
 
@@ -60,30 +64,15 @@ __forceinline__ __device__ void PerThread_OdeFunction(\
 	for (int k = 0; k < NumberOfMolecules; k++)
 		F[k+3] 			*= tmp;
 
-	Precision p_inf 	= sPAR[12] + cPAR[6] * sin(2.0 * PI * T) + cPAR[7] * sin(cPAR[8] * T + cPAR[9]);
-	Precision p_inf_dot = cPAR[10] * cos(2.0 * PI * T) + cPAR[11] * cos(cPAR[8] * T + cPAR[9]);
-	Precision p_L 		= p - cPAR[12] * rX0 - cPAR[13] * X[1] * rX0;
-	Precision dpdt 		= p * (sum(omega, NumberOfMolecules) * rM + dTdt / Temp - 3.0 * X[1] * rX0 * cPAR[14]);
-
-	Precision Nom 		= (p_L - p_inf) / cPAR[0] * rX0 + (p - p_inf) * X[1] / cPAR[1] * rX0 \
-		+ (dpdt - p_inf_dot) / cPAR[2] - (1.0 - cPAR[3] * X[1]) * 1.5 * X[1] * X[1] * rX0;
-	Precision Den 		= 1.0 - cPAR[4] * X[1] + cPAR[5] * rX0;
-
-	F[0] 				= X[1];
-	F[1] 				= Nom / Den;
-
 	Precision d2Rdt2 = F[1] * cPAR[15] * cPAR[14] * cPAR[14];
 	Precision R		 = X[0] * cPAR[15];
 	Precision R_dot	 = X[1] * cPAR[15] * cPAR[14];
 	Precision V		 = 1.3333333333 * R * R * R * PI;
 	Precision dVdt	 = 3.0 * V * R_dot * rX0pc15;
 
-	Precision int_th, int_v, int_r;
-	int_th 			= -(p * (1.0 + R_dot / sPAR[21]) + R / sPAR[21] * dpdt) * dVdt;
-	int_v			= 4.0 * PI * (cPAR[13] / cPAR[14]) * (R * R_dot * R_dot + R * R * R_dot * d2Rdt2 / sPAR[21]);
-	int_r			= 4.0 * PI / sPAR[21] * R * R * R_dot * (R_dot * p + dpdt * R - 0.5 * sPAR[22] * R_dot * R_dot * R_dot - sPAR[22] * R * R_dot * d2Rdt2);
-
-	F[NumberOfMolecules+3] = int_th + int_v + int_r;
+	F[NumberOfMolecules+3]	= -(p * (1.0 + R_dot / sPAR[21]) + R / sPAR[21] * dpdt) * dVdt;
+	F[NumberOfMolecules+3]	+= 4.0 * PI * (cPAR[13] / cPAR[14]) * (R * R_dot * R_dot + R * R * R_dot * d2Rdt2 / sPAR[21]);
+	F[NumberOfMolecules+3]	+= 4.0 * PI / sPAR[21] * R * R * R_dot * (R_dot * p + dpdt * R - 0.5 * sPAR[22] * R_dot * R_dot * R_dot - sPAR[22] * R * R_dot * d2Rdt2);
 }
 
 // EVENTS

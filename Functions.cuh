@@ -105,7 +105,7 @@ __forceinline__ __device__ Precision ProdCoeffPow(Precision* vec_base, int* vec_
 }
 
 template <class Precision>
-__forceinline__ __device__ void CalculateThermoDynamics(Precision* C_v, Precision* C_p, Precision* H, Precision* S_0, const Precision& T, const Precision& R)
+__forceinline__ __device__ void CalculateThermoDynamics(Precision& C_p, Precision* H, Precision* S_0,Precision* X_conc, const Precision& T, const Precision& R)
 {
 	Precision TempRangeLow	 	= 200.0;
 	Precision TempRangeHigh		= 6000.0;
@@ -139,31 +139,26 @@ __forceinline__ __device__ void CalculateThermoDynamics(Precision* C_v, Precisio
 		for (int i = 0; i < 7; i++)
 			a_tmp[i]	= const_a[(2*k+RowOffset) * 7 + i];
 
-		C_p[k] 			= R * 		 (	a_tmp[0]  		  +	a_tmp[1] * Temp  		  +	a_tmp[2] * Temp * Temp   			  	+ a_tmp[3] * Temp * Temp * Temp 			 + a_tmp[4] * Temp * Temp * Temp * Temp		  );
+		C_p 			+= R * 		 (	a_tmp[0]  		  +	a_tmp[1] * Temp  		  +	a_tmp[2] * Temp * Temp   			  	+ a_tmp[3] * Temp * Temp * Temp 			 + a_tmp[4] * Temp * Temp * Temp * Temp		  ) * X_conc[k];
 		H[k] 			= R * Temp * (	a_tmp[0]    	  +	a_tmp[1] * Temp * 0.5 	  +	a_tmp[2] * Temp * Temp * 0.33333333   	+ a_tmp[3] * Temp * Temp * Temp * 0.25	 	 + a_tmp[4] * Temp * Temp * Temp * Temp * 0.2 ) + R * a_tmp[5];
 		S_0[k] 			= R * 		 (	a_tmp[0] * lnT    +	a_tmp[1] * Temp 		  + a_tmp[2] * Temp * Temp * 0.5  			+ a_tmp[3] * Temp * Temp * Temp * 0.33333333 + a_tmp[4] * Temp * Temp * Temp * Temp * 0.25  + a_tmp[6]);
-		C_v[k]			= C_p[k] - R;
 	}
 }
 
 template <class Precision>
-__forceinline__ __device__ Precision ThermalConduction(const Precision& R, const Precision& R_dot, Precision* x, Precision* sPAR, const Precision& Temp, const Precision& c_p, const Precision& rho)
+__forceinline__ __device__ Precision ThermalConduction(const Precision& R, const Precision& R_dot, const Precision& lambda_mean, Precision* sPAR, const Precision& Temp, const Precision& rho_c_p)
 {
-	Precision lambda_mean	= x[2] * sPAR[13] + x[4] * sPAR[14] +  x[5] * sPAR[15] +  x[7] * sPAR[16];
-	Precision khi			= 10.0 * lambda_mean / rho / c_p;
+	Precision khi			= 10.0 * lambda_mean / rho_c_p;
 	Precision l_th			= fmin(sqrt(fabs(R * khi / R_dot)), R / PI);
-	Precision Heat 			= lambda_mean * (sPAR[0] - Temp) / l_th;
-//	Heat					= 0.0;
-	return Heat;
+	return lambda_mean * (sPAR[0] - Temp) / l_th;
 }
 
 template <class Precision>
-__forceinline__ __device__ Precision Evaporation(Precision* sPAR, const Precision& Temp, const Precision& p, Precision* x)
+__forceinline__ __device__ Precision Evaporation(Precision* sPAR, const Precision& Temp, const Precision& x5p)
 {
 	Precision m_eva_kg 		= sPAR[17] * rsqrt(2.0 * PI * sPAR[18] * sPAR[0]) 	* sPAR[19];
-	Precision m_con_kg 		= sPAR[17] * rsqrt(2.0 * PI * sPAR[18] * Temp) 		* x[5] * p;
+	Precision m_con_kg 		= sPAR[17] * rsqrt(2.0 * PI * sPAR[18] * Temp) 		* x5p;
 	Precision m_net_mol 	= 1.0e3 / sPAR[6] * (m_eva_kg - m_con_kg);
-//	m_net_mol				= 0.0;
 	return m_net_mol;
 }
 
