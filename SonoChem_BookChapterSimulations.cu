@@ -10,11 +10,6 @@ using namespace std;
 #define PI 3.14159265358979323846
 #define NumberOfMolecules 10
 #define NumberOfReactions 34
-#include "Functions.cuh"
-#include "SonoChem_SystemDefinition.cuh"
-#include "SingleSystem_PerThread_Interface.cuh"
-#include "Parameters.cuh"
-#include "InitialConditions.cuh"
 
 //-----------------------------------------------------------------------
 // Problem definition
@@ -37,6 +32,28 @@ const int NA   = 64;     // NumberOfAccessories
 const int NIA  = 11;     // NumberOfIntegerAccessories
 const int NDO  = 0;   // NumberOfPointsOfDenseOutput
 
+//-----------------------------------------------------------------------
+// Constant memory allocation
+__constant__ PRECISION const_a[2*NumberOfMolecules*7];
+__constant__ PRECISION const_ThirdBodyMatrix[NumberOfReactions * NumberOfMolecules];
+__constant__ int const_ReactionMatrix_forward[NumberOfReactions * NumberOfMolecules];
+__constant__ int const_ReactionMatrix_backward[NumberOfReactions * NumberOfMolecules];
+__constant__ int const_ReactionMatrix[NumberOfReactions * NumberOfMolecules];
+__constant__ PRECISION const_A[NumberOfReactions];
+__constant__ PRECISION const_b[NumberOfReactions];
+__constant__ PRECISION const_E[NumberOfReactions];
+
+//-----------------------------------------------------------------------
+// Includes
+
+#include "Functions.cuh"
+#include "SonoChem_SystemDefinition.cuh"
+#include "SingleSystem_PerThread_Interface.cuh"
+#include "Parameters.cuh"
+#include "InitialConditions.cuh"
+
+//-----------------------------------------------------------------------
+
 void Linspace(vector<PRECISION>&, PRECISION, PRECISION, int);
 void Logspace(vector<PRECISION>&, PRECISION, PRECISION, int);
 void FillSolverObject(ProblemSolver<NT,SD,NCP,NSP,NISP,NE,NA,NIA,NDO,SOLVER,PRECISION>&, const vector<PRECISION>&, const vector<PRECISION>&, const PRECISION&);
@@ -55,6 +72,10 @@ int main()
 	int SelectedDevice = SelectDeviceByClosestRevision(MajorRevision, MinorRevision);
 
 	PrintPropertiesOfSpecificDevice(SelectedDevice);
+
+//-----------------------------------------------------------------------
+// Constant memory copies
+#include "ConstantMemCopies.cuh"
 
 //-----------------------------------------------------------------------
 //  Solver object configuration
@@ -83,12 +104,11 @@ int main()
 //-----------------------------------------------------------------------
 //  Simulations
 	vector<PRECISION> PA_vec(NumberOf_PA, 0.0);
-	//	Linspace(PA_vec, 1.72549e5, 0.0e5, NumberOf_PA);
+		Linspace(PA_vec, 1.0e5, 1.2e5, NumberOf_PA);
 		// Linspace(PA_vec, 2.0e5, 1.890196e5, NumberOf_PA);
-		Linspace(PA_vec, 2.0e5, 1.890196e5, NumberOf_PA);
 	vector<PRECISION> f_vec(NumberOf_f, 0.0);
 	//	Logspace(f_vec, 89.943e3, 1000.0e3, NumberOf_f);
-		Logspace(f_vec, 20.0e3, 1000.0e3, NumberOf_f);
+		Logspace(f_vec, 200.0e3, 1000.0e3, NumberOf_f);
 	vector<PRECISION> RE_vec(NumberOf_RE, 0.0);
 		Linspace(RE_vec, 8.0e-6, 2.0e-6, NumberOf_RE);
 
@@ -114,8 +134,8 @@ int main()
 			//cout << Solver_SC.GetHost<PRECISION>(tid, ControlParameters, 6) / 1.0e5 << "  ";
 		}
 
-    	int TransientSimulations = 8;
-    	int ConvergentSimulations = 4;
+    	int TransientSimulations = 2;
+    	int ConvergentSimulations = 2;
 
 		cout << "Simulation started with R_E = " << RE_vec[LaunchCounter] * 1.0e6 << " mum." << endl << endl;
 
@@ -177,7 +197,7 @@ int main()
 		stringstream StreamFilename;
 		StreamFilename.precision(2);
 		StreamFilename.setf(ios::fixed);
-		StreamFilename << "SC_results_RE_" << RE_vec[LaunchCounter] * 1.0e6 << "_plus.txt";
+		StreamFilename << "Results/RE_" << RE_vec[LaunchCounter] * 1.0e6 << "_cmem.txt";
 
 		string Filename = StreamFilename.str();
 		remove( Filename.c_str() );

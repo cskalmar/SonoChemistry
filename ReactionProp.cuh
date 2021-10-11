@@ -2,7 +2,7 @@
 
 int ReactionMatrix_forward[NumberOfReactions * NumberOfMolecules] = \
 	 //	O	H	H2	OH	O2	H2O	HO2	H2O2 O3 OHEX
-	 {
+	{
 		0,	1,	0,	1,	0,	0,	0,	0,	0,	0,			\
 		2,	0,	0,	0,	0,	0,	0,	0,	0,	0,			\
 		1,	1,	0,	0,	0,	0,	0,	0,	0,	0,			\

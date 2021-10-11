@@ -107,7 +107,9 @@ __forceinline__ __device__ Precision ProdCoeffPow(Precision* vec_base, int* vec_
 template <class Precision>
 __forceinline__ __device__ void CalculateThermoDynamics(Precision* C_v, Precision* C_p, Precision* H, Precision* S_0, const Precision& T, const Precision& R)
 {
-	#include "ThermoProp.cuh"
+	Precision TempRangeLow	 	= 200.0;
+	Precision TempRangeHigh		= 6000.0;
+	Precision TempRangeMid	 	= 1000.0;
 
 	Precision Temp;
 	int RowOffset;
@@ -135,7 +137,7 @@ __forceinline__ __device__ void CalculateThermoDynamics(Precision* C_v, Precisio
 	for (int k = 0; k < NumberOfMolecules; k++)
 	{
 		for (int i = 0; i < 7; i++)
-			a_tmp[i]	= a[(2*k+RowOffset) * 7 + i];
+			a_tmp[i]	= const_a[(2*k+RowOffset) * 7 + i];
 
 		C_p[k] 			= R * 		 (	a_tmp[0]  		  +	a_tmp[1] * Temp  		  +	a_tmp[2] * Temp * Temp   			  	+ a_tmp[3] * Temp * Temp * Temp 			 + a_tmp[4] * Temp * Temp * Temp * Temp		  );
 		H[k] 			= R * Temp * (	a_tmp[0]    	  +	a_tmp[1] * Temp * 0.5 	  +	a_tmp[2] * Temp * Temp * 0.33333333   	+ a_tmp[3] * Temp * Temp * Temp * 0.25	 	 + a_tmp[4] * Temp * Temp * Temp * Temp * 0.2 ) + R * a_tmp[5];
@@ -166,17 +168,17 @@ __forceinline__ __device__ Precision Evaporation(Precision* sPAR, const Precisio
 }
 
 template <class Precision>
-__forceinline__ __device__ Precision BackwardRate(Precision* sPAR, int* ReactionMatrix, Precision* S_0, Precision* H_0, const Precision& Temp, Precision& k_f, const int& i)
+__forceinline__ __device__ Precision BackwardRate(Precision* sPAR, Precision* S_0, Precision* H_0, const Precision& Temp, Precision& k_f, const int& i)
 {
-	Precision DeltaS_0 	= SumCoeffProd(S_0, &ReactionMatrix[i * NumberOfMolecules], NumberOfMolecules);
-	Precision DeltaH_0 	= SumCoeffProd(H_0, &ReactionMatrix[i * NumberOfMolecules], NumberOfMolecules);
+	Precision DeltaS_0 	= SumCoeffProd(S_0, &const_ReactionMatrix[i * NumberOfMolecules], NumberOfMolecules);
+	Precision DeltaH_0 	= SumCoeffProd(H_0, &const_ReactionMatrix[i * NumberOfMolecules], NumberOfMolecules);
 	Precision K_p		= exp(DeltaS_0 / sPAR[11] - DeltaH_0 / sPAR[11] / Temp);
-	Precision K_c		= K_p * pow( sPAR[12] * 10.0 / sPAR[11] / Temp , sum(&ReactionMatrix[i * NumberOfMolecules], NumberOfMolecules) );
+	Precision K_c		= K_p * pow( sPAR[12] * 10.0 / sPAR[11] / Temp , sum(&const_ReactionMatrix[i * NumberOfMolecules], NumberOfMolecules) );
 	return k_f / K_c;
 }
 
 template <class Precision>
-__forceinline__ __device__ Precision PressureDependentReaction(Precision* sPAR, Precision* ThirdBodyMatrix, Precision* X_conc, const Precision& A_inf, const Precision& b_inf, const Precision& E_inf, const Precision& Temp, const int& i)
+__forceinline__ __device__ Precision PressureDependentReaction(Precision* sPAR, Precision* X_conc, const Precision& Temp, const int& i)
 {
 	Precision A_0, b_0, E_0;
 	Precision alfa;
@@ -213,9 +215,9 @@ __forceinline__ __device__ Precision PressureDependentReaction(Precision* sPAR, 
 	}
 
 	Precision exponent	= -1.0 / sPAR[20] / Temp;
-	Precision k_inf 	= A_inf * pow(Temp, b_inf) * exp(E_inf * exponent);
+	Precision k_inf 	= const_A[i] * pow(Temp, const_b[i]) * exp(const_E[i] * exponent);
 	Precision k_0		= A_0 * pow(Temp, b_0) * exp(E_0 * exponent);
-	Precision M_corr	= SumCoeffProd(&ThirdBodyMatrix[i * NumberOfMolecules], X_conc, NumberOfMolecules);
+	Precision M_corr	= SumCoeffProd(&const_ThirdBodyMatrix[i * NumberOfMolecules], X_conc, NumberOfMolecules);
 	Precision P_r		= k_0 / k_inf * M_corr;
 
 //	Precision F_cent	= alfa;
@@ -236,7 +238,6 @@ __forceinline__ __device__ Precision PressureDependentReaction(Precision* sPAR, 
 template <class Precision>
 __forceinline__ __device__ void Reactions(Precision* omega, const Precision& Temp, Precision* X_conc, Precision* sPAR, Precision* S_0, Precision* H_0)
 {
-	#include "ReactionProp.cuh"
 
 	Precision q[NumberOfReactions];
 	for (int i = 0; i < NumberOfReactions; i++)
@@ -246,31 +247,30 @@ __forceinline__ __device__ void Reactions(Precision* omega, const Precision& Tem
 
 	Precision exponent = -1.0 / (sPAR[20] * Temp);
 	for (int i = 0; i < NumberOfReactions; i++)
-//	for (int i = 0; i < 5; i++)
 	{
 			if ( (i == 4) || (i == 13) || (i == 21) ) // Pressure dependent reactions
-				k_f = PressureDependentReaction(sPAR, ThirdBodyMatrix, X_conc, A[i], b[i], E[i], Temp, i);
+				k_f = PressureDependentReaction(sPAR, X_conc, Temp, i);
 			else
 			{
-				k_f = A[i];
-				if (b[i] != 0.0)
-					k_f *= pow(Temp, b[i]);
-				if (E[i] != 0.0)
-					k_f *=  exp(E[i] * exponent);
+				k_f = const_A[i];
+				if (const_b[i] != 0.0)
+					k_f *= pow(Temp, const_b[i]);
+				if (const_E[i] != 0.0)
+					k_f *=  exp(const_E[i] * exponent);
 			}
-		k_b = BackwardRate(sPAR, ReactionMatrix, S_0, H_0, Temp, k_f, i);
+		k_b = BackwardRate(sPAR, S_0, H_0, Temp, k_f, i);
 
-		q[i] = k_f * ProdCoeffPow(X_conc, &ReactionMatrix_forward[i * NumberOfMolecules], NumberOfMolecules) - k_b * ProdCoeffPow(X_conc, &ReactionMatrix_backward[i * NumberOfMolecules], NumberOfMolecules);
+		q[i] = k_f * ProdCoeffPow(X_conc, &const_ReactionMatrix_forward[i * NumberOfMolecules], NumberOfMolecules) - k_b * ProdCoeffPow(X_conc, &const_ReactionMatrix_backward[i * NumberOfMolecules], NumberOfMolecules);
 
 		if ( (i == 0) || (i == 1) || (i == 2) || (i == 4) || (i == 10) || (i == 13) || (i == 21) || (i == 28) ) // Third body reactions
-			q[i] *= SumCoeffProd(&ThirdBodyMatrix[i * NumberOfMolecules], X_conc, NumberOfMolecules);
+			q[i] *= SumCoeffProd(&const_ThirdBodyMatrix[i * NumberOfMolecules], X_conc, NumberOfMolecules);
 	}
 
 	for (int k = 0; k < NumberOfMolecules; k++)
 	{
 		omega[k] = 0.0;
 		for (int i = 0; i < NumberOfReactions; i++)
-			omega[k] += q[i] * ReactionMatrix[i * NumberOfMolecules + k];
+			omega[k] += q[i] * const_ReactionMatrix[i * NumberOfMolecules + k];
 	}
 
 }

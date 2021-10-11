@@ -13,7 +13,7 @@ __forceinline__ __device__ void PerThread_OdeFunction(\
 	for (int i = 0; i < NumberOfMolecules + 3 + 1; i++)
 		F[i] = 0.0;
 
-	Precision X_conc[NumberOfMolecules]; 
+	Precision X_conc[NumberOfMolecules];
 	Precision x[NumberOfMolecules];
 	Precision C_v[NumberOfMolecules];
 	Precision C_p[NumberOfMolecules];
@@ -24,7 +24,7 @@ __forceinline__ __device__ void PerThread_OdeFunction(\
 //	Precision TmpColumnVector[NumberOfReactions];
 
 	Precision Temp 		= X[2] * sPAR[0];
-	for (int k = 0; k < NumberOfMolecules; k++)	
+	for (int k = 0; k < NumberOfMolecules; k++)
 		X_conc[k] 		= X[k+3] * cPAR[16];
 
 	Precision M 		= sum(X_conc, NumberOfMolecules);
@@ -53,7 +53,7 @@ __forceinline__ __device__ void PerThread_OdeFunction(\
 
 	for (int k = 0; k < NumberOfMolecules; k++)
 		F[k+3] 			= omega[k] - X_conc[k] * 3.0 * X[1] * rX0 * cPAR[14];
-		
+
 	F[8] 				+= m_net_mol * 3.0 * rX0pc15 * 1.0e-6;
 
 	Precision tmp		= 1.0 / (cPAR[14] * cPAR[16]);
@@ -100,7 +100,7 @@ __forceinline__ __device__ void PerThread_ActionAfterEventDetection(\
 			int tid, int NT, int IDX, int& UDT, \
 			Precision    &T, Precision   &dT, Precision*    TD, Precision*   X, \
 			Precision* cPAR, Precision* sPAR, int*       sPARi, Precision* ACC, int* ACCi)
-{	
+{
 }
 
 // ACCESSORIES
@@ -174,7 +174,7 @@ __forceinline__ __device__ void PerThread_Finalization(\
 	else //Converged
 	{
 		Precision Pi_w					= X[NumberOfMolecules+3];
-		
+
 		for (int k = 0; k < NumberOfMolecules; k++)
 		{
 			Precision yield_i_local 	= ACC[2+k];
