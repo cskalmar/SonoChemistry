@@ -92,19 +92,15 @@ __forceinline__ __device__ Precision ProdCoeffPow(Precision* vec_base, int* vec_
 template <class Precision>
 __forceinline__ __device__ void CalculateThermoDynamics(Precision& C_p, Precision* H, Precision* S_0, Precision* X_conc, const Precision& T, const Precision& R)
 {
-	Precision TempRangeLow	 	= 200.0;
-	Precision TempRangeHigh		= 6000.0;
-	Precision TempRangeMid	 	= 1000.0;
-
 	Precision Temp;
 	int RowOffset;
-	if (T < TempRangeLow){
-		Temp = TempRangeLow;
+	if (T < const_TempRanges[0]){
+		Temp = const_TempRanges[0];
 		RowOffset = 1;}
-	else if (T > TempRangeHigh){
-		Temp = TempRangeHigh;
+	else if (T > const_TempRanges[1]){
+		Temp = const_TempRanges[1];
 		RowOffset = 0;}
-	else if (T <= TempRangeMid){
+	else if (T <= const_TempRanges[2]){
 		Temp = T;
 		RowOffset = 1;}
 	else {
@@ -155,107 +151,103 @@ __forceinline__ __device__ Precision BackwardRate(Precision* sPAR, Precision* S_
 {
 	Precision DeltaS_0 	= SumCoeffProd(S_0, &const_ReactionMatrix[i * NumberOfMolecules], NumberOfMolecules);
 	Precision DeltaH_0 	= SumCoeffProd(H_0, &const_ReactionMatrix[i * NumberOfMolecules], NumberOfMolecules);
-	Precision K_p		= exp(DeltaS_0 / sPAR[11] - DeltaH_0 / sPAR[11] / Temp);
-	Precision K_c		= K_p * pow( sPAR[12] * 10.0 / sPAR[11] / Temp , sum(&const_ReactionMatrix[i * NumberOfMolecules], NumberOfMolecules) );
+	Precision r_Temp_R	= 1.0 / (sPAR[11] * Temp);
+	Precision K_p		= exp(DeltaS_0  * r_Temp_R * Temp - DeltaH_0 * r_Temp_R);
+	Precision K_c		= K_p * pow( sPAR[12] * 10.0  * r_Temp_R , sum(&const_ReactionMatrix[i * NumberOfMolecules], NumberOfMolecules) );
 	return k_f / K_c;
 }
 
 template <class Precision>
 __forceinline__ __device__ Precision PressureDependentReaction(Precision* sPAR, Precision* X_conc, const Precision& Temp, const int& i)
 {
-	Precision A_0, b_0, E_0;
-	Precision alfa;
-	Precision T_1_, T_3_, T_2; // -1.0 / value for T_1 and T_3
+	// Precision A_0, b_0, E_0;
+	// Precision alfa;
+	// Precision T_1_, T_3_, T_2; // -1.0 / value for T_1 and T_3
+	Precision rTemp		= 1.0 / Temp;
+	Precision exponent	= -1.0 / sPAR[20] * rTemp;
+	Precision k_0, F_cent;
 	switch (i)
 	{
 		case 4:
-			A_0			= 5.2669e19;
-			b_0			= -1.3737;
-			E_0			= 0.0;
-			alfa		= 0.67;
-			T_3_		= -1.0e30;
-			T_1_		= -1.0e-30;
-			T_2			= 1.0e+30;
+			// A_0		= 5.2669e19; b_0 = -1.3737; E_0 = 0.0;
+			// alfa		= 0.67;
+			// T_3_		= -1.0e30;
+			// T_1_		= -1.0e-30;
+			// T_2			= 1.0e+30;
+
+			k_0			= 5.2669e19 * pow(Temp, -1.3737);
+			// F_cent		= (1.0 - alfa) * exp(Temp * T_3_) + alfa * exp(Temp * T_1_) + exp(-T_2 * rTemp);
+			// F_cent		= (1.0 - 0.67) * exp(-Temp * 1.0e30) + 0.67 * exp(-Temp * 1.0e-30) + exp(-1.0e30 * rTemp);
+			F_cent		= 0.67;
 			break;
 		case 13:
-			A_0			= 1.9928e18;
-			b_0			= -1.178;
-			E_0			= -5.2382e3;
-			alfa		= 0.43;
-			T_3_		= -1.0e30;
-			T_1_		= -1.0e-30;
-			T_2			= 1.0e+30;
+			// A_0		= 1.9928e18; b_0 = -1.178; E_0 = -5.2382e3;
+			// alfa		= 0.43;
+			// T_3_		= -1.0e30;
+			// T_1_		= -1.0e-30;
+			// T_2			= 1.0e+30;
+
+			k_0			= 1.9928e18 * pow(Temp, -1.178) * exp(-5.2382e3 * exponent);
+			// F_cent		= (1.0 - alfa) * exp(Temp * T_3_) + alfa * exp(Temp * T_1_) + exp(-T_2 * rTemp);
+			// F_cent		= (1.0 - 0.43) * exp(-Temp * 1.0e30) + 0.43 * exp(-Temp * 1.0e-30) + exp(-1.0e+30 * rTemp);
+			F_cent		= 0.43;
 			break;
 		case 21:
-			A_0			= 2.275e28;
-			b_0			= -4.37;
-			E_0			= 27297.0;
-			alfa		= 0.6417;
-			T_3_		= -2557.544757;
-			T_1_		= -0.000115198;
-			T_2			= 6.0608e3;
+			// A_0		= 2.275e28; b_0	= -4.37; E_0 = 27297.0;
+			// alfa		= 0.6417;
+			// T_3_		= -2557.544757;
+			// T_1_		= -0.000115198;
+			// T_2			= 6.0608e3;
+
+			k_0			= 2.275e28 * pow(Temp, -4.37) * exp(27297.0 * exponent);
+			// F_cent		= (1.0 - alfa) * exp(Temp * T_3_) + alfa * exp(Temp * T_1_) + exp(-T_2 * rTemp);
+			F_cent		= (1.0 - 0.6417) * exp(-Temp * 2557.544757) + 0.6417 * exp(-Temp * 0.000115198) + exp(-6.0608e3 * rTemp);
 			break;
 	}
 
-	Precision exponent	= -1.0 / sPAR[20] / Temp;
 	Precision k_inf 	= const_A[i] * pow(Temp, const_b[i]) * exp(const_E[i] * exponent);
-	Precision k_0		= A_0 * pow(Temp, b_0) * exp(E_0 * exponent);
 	Precision M_corr	= SumCoeffProd(&const_ThirdBodyMatrix[i * NumberOfMolecules], X_conc, NumberOfMolecules);
 	Precision P_r		= k_0 / k_inf * M_corr;
 
-//	Precision F_cent	= alfa;
-	Precision F_cent	= (1.0 - alfa) * exp(Temp * T_3_) + alfa * exp(Temp * T_1_) + exp(-T_2 / Temp);
+	// F_cent				= (1.0 - alfa) * exp(Temp * T_3_) + alfa * exp(Temp * T_1_) + exp(-T_2 * rTemp);
 
-	// Precision d			= 0.14;
 	Precision log10F_c	= log10(F_cent);
 	Precision n			= 0.75 - 1.27 * log10F_c;
-	Precision c			= -0.4 - 0.67 * log10F_c;
-	Precision log10Pr	= log10(P_r);
-	Precision logF		= log10F_c / ( 1.0 + pow( (log10Pr + c) / (n - 0.14 * (log10Pr + c)), 2.0 ) );
-	// Precision F 		= pow(10.0, logF);
+	// Precision c			= -0.4 - 0.67 * log10F_c;
+	Precision log10Pr_plus_c	= log10(P_r) - 0.4 - 0.67 * log10F_c;
+	Precision logF		= log10F_c / ( 1.0 + pow( log10Pr_plus_c / (n - 0.14 * log10Pr_plus_c), 2.0 ) );
 
-	// Precision k_f		= k_inf * P_r / (1.0 + P_r) * pow(10.0, logF);
 	return k_inf * P_r / (1.0 + P_r) * pow(10.0, logF);
 }
 
 template <class Precision>
 __forceinline__ __device__ void Reactions(Precision* omega, const Precision& Temp, Precision* X_conc, Precision* sPAR, Precision* S_0, Precision* H_0)
 {
-
-	Precision q[NumberOfReactions];
-	for (int i = 0; i < NumberOfReactions; i++)
-		q[i] = 0.0; //TODO: q[i]-k kiküszöbölése, omega[k]-t rögtön számolni
-
-	Precision k_f, k_b;
-
+	Precision k_f, k_b, q_i;
 	Precision exponent = -1.0 / (sPAR[20] * Temp);
+
 	for (int i = 0; i < NumberOfReactions; i++)
 	{
-			if ( (i == 4) || (i == 13) || (i == 21) ) // Pressure dependent reactions
-				k_f = PressureDependentReaction(sPAR, X_conc, Temp, i);
-			else
-			{
-				k_f = const_A[i];
-				if (const_b[i] != 0.0)
-					k_f *= pow(Temp, const_b[i]);
-				if (const_E[i] != 0.0)
-					k_f *=  exp(const_E[i] * exponent);
-			}
+		if ( (i == 4) || (i == 13) || (i == 21) ) // Pressure dependent reactions
+			k_f = PressureDependentReaction(sPAR, X_conc, Temp, i);
+		else
+		{
+			k_f = const_A[i];
+			if (const_b[i] != 0.0)
+				k_f *= pow(Temp, const_b[i]);
+			if (const_E[i] != 0.0)
+				k_f *=  exp(const_E[i] * exponent);
+		}
 		k_b = BackwardRate(sPAR, S_0, H_0, Temp, k_f, i);
 
-		q[i] = k_f * ProdCoeffPow(X_conc, &const_ReactionMatrix_forward[i * NumberOfMolecules], NumberOfMolecules) - k_b * ProdCoeffPow(X_conc, &const_ReactionMatrix_backward[i * NumberOfMolecules], NumberOfMolecules);
+		q_i = k_f * ProdCoeffPow(X_conc, &const_ReactionMatrix_forward[i * NumberOfMolecules], NumberOfMolecules) - k_b * ProdCoeffPow(X_conc, &const_ReactionMatrix_backward[i * NumberOfMolecules], NumberOfMolecules);
 
 		if ( (i == 0) || (i == 1) || (i == 2) || (i == 4) || (i == 10) || (i == 13) || (i == 21) || (i == 28) ) // Third body reactions
-			q[i] *= SumCoeffProd(&const_ThirdBodyMatrix[i * NumberOfMolecules], X_conc, NumberOfMolecules);
-	}
+			q_i *= SumCoeffProd(&const_ThirdBodyMatrix[i * NumberOfMolecules], X_conc, NumberOfMolecules);
 
-	for (int k = 0; k < NumberOfMolecules; k++)
-	{
-		omega[k] = 0.0;
-		for (int i = 0; i < NumberOfReactions; i++)
-			omega[k] += q[i] * const_ReactionMatrix[i * NumberOfMolecules + k];
+		for (int k = 0; k < NumberOfMolecules; k++)
+			omega[k] += q_i * const_ReactionMatrix[i * NumberOfMolecules + k];
 	}
-
 }
 
 #endif

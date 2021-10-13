@@ -21,10 +21,7 @@ __forceinline__ __device__ void PerThread_OdeFunction(\
 
 	Precision Temp 		= X[2] * sPAR[0];
 	for (int k = 0; k < NumberOfMolecules; k++)
-	{
 		X_conc[k] 		= X[k+3] * cPAR[16];
-		// X[k+3] 			= X_conc[k];
-	}
 
 	Precision M 		= sum(X_conc, NumberOfMolecules);
 	Precision tmp		= 1.0 / M;

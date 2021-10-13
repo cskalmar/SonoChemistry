@@ -42,6 +42,7 @@ __constant__ int const_ReactionMatrix[NumberOfReactions * NumberOfMolecules];
 __constant__ PRECISION const_A[NumberOfReactions];
 __constant__ PRECISION const_b[NumberOfReactions];
 __constant__ PRECISION const_E[NumberOfReactions];
+__constant__ PRECISION const_TempRanges[3];
 
 //-----------------------------------------------------------------------
 // Includes
