@@ -90,7 +90,7 @@ __forceinline__ __device__ Precision ProdCoeffPow(Precision* vec_base, int* vec_
 }
 
 template <class Precision>
-__forceinline__ __device__ void CalculateThermoDynamics(Precision& C_p, Precision* H, Precision* S_0,Precision* X_conc, const Precision& T, const Precision& R)
+__forceinline__ __device__ void CalculateThermoDynamics(Precision& C_p, Precision* H, Precision* S_0, Precision* X_conc, const Precision& T, const Precision& R)
 {
 	Precision TempRangeLow	 	= 200.0;
 	Precision TempRangeHigh		= 6000.0;
