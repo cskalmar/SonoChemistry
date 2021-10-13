@@ -104,13 +104,13 @@ int main()
 //-----------------------------------------------------------------------
 //  Simulations
 	vector<PRECISION> PA_vec(NumberOf_PA, 0.0);
-		Linspace(PA_vec, 1.0e5, 1.2e5, NumberOf_PA);
+		Linspace(PA_vec, 1.8e5, 1.8e5, NumberOf_PA);
 		// Linspace(PA_vec, 2.0e5, 1.890196e5, NumberOf_PA);
 	vector<PRECISION> f_vec(NumberOf_f, 0.0);
 	//	Logspace(f_vec, 89.943e3, 1000.0e3, NumberOf_f);
-		Logspace(f_vec, 200.0e3, 1000.0e3, NumberOf_f);
+		Logspace(f_vec, 50.0e3, 50.0e3, NumberOf_f);
 	vector<PRECISION> RE_vec(NumberOf_RE, 0.0);
-		Linspace(RE_vec, 8.0e-6, 2.0e-6, NumberOf_RE);
+		Linspace(RE_vec, 8.0e-6, 8.0e-6, NumberOf_RE);
 
 	vector< vector<PRECISION> > CollectedData;
 	CollectedData.resize( NT , vector<PRECISION>( 3 + 2 * NumberOfMolecules + 4 * NumberOfMolecules + 2 , 0.0 ) );
@@ -134,8 +134,8 @@ int main()
 			//cout << Solver_SC.GetHost<PRECISION>(tid, ControlParameters, 6) / 1.0e5 << "  ";
 		}
 
-    	int TransientSimulations = 2;
-    	int ConvergentSimulations = 2;
+    	int TransientSimulations = 1;
+    	int ConvergentSimulations = 1;
 
 		cout << "Simulation started with R_E = " << RE_vec[LaunchCounter] * 1.0e6 << " mum." << endl << endl;
 
@@ -231,6 +231,11 @@ int main()
     cout << "Total simulation time: " << 1.0*(ConvergedEnd-SimulationStart) / CLOCKS_PER_SEC << " s" << endl << endl;
 
 	cout << "Test finished!" << endl << endl;
+
+	for (int i = 0; i < SD; i++)
+	{
+		cout << "x" << i << ":\t" << Solver_SC.GetHost<PRECISION>(0, ActualState, i) << endl;
+	}
 }
 
 // AUXILIARY FUNCTION -----------------------------------------------------------------------------

@@ -5,10 +5,7 @@ template <class Precision>
 __forceinline__ __device__ Precision sum(Precision* vec, const int& length)
 {
 	Precision res = 0.0;
-	for (int i = 0; i < length; i++)
-	{
-		res += vec[i];
-	}
+	for (int i = 0; i < length; i++){res += vec[i];}
 	return res;
 }
 
@@ -16,10 +13,7 @@ template <class Precision>
 __forceinline__ __device__ int sum(int* vec, const int& length)
 {
 	int res = 0;
-	for (int i = 0; i < length; i++)
-	{
-		res += vec[i];
-	}
+	for (int i = 0; i < length; i++){res += vec[i];}
 	return res;
 }
 
@@ -27,10 +21,7 @@ template <class Precision>
 __forceinline__ __device__ Precision prod(Precision* vec, const int& length)
 {
 	Precision res = 1.0;
-	for (int i = 0; i < length; i++)
-	{
-		res *= vec[i];
-	}
+	for (int i = 0; i < length; i++){res *= vec[i];}
 	return res;
 }
 
@@ -51,10 +42,7 @@ template <class Precision>
 __forceinline__ __device__ Precision SumCoeffProd(Precision* vec1, Precision* vec2, const int& length)
 {
 	Precision res = 0.0;
-	for (int i = 0; i < length; i++)
-	{
-		res += vec1[i] * vec2[i];
-	}
+	for (int i = 0; i < length; i++){res += vec1[i] * vec2[i];}
 	return res;
 }
 
@@ -62,10 +50,7 @@ template <class Precision>
 __forceinline__ __device__ Precision SumCoeffProd(Precision* vec1, int* vec2, const int& length)
 {
 	Precision res = 0.0;
-	for (int i = 0; i < length; i++)
-	{
-		res += vec1[i] * vec2[i];
-	}
+	for (int i = 0; i < length; i++){res += vec1[i] * vec2[i];}
 	return res;
 }
 
@@ -132,6 +117,9 @@ __forceinline__ __device__ void CalculateThermoDynamics(Precision& C_p, Precisio
 //	int RowOffset 		= (Temp <= TempRangeMid) ? 1 : 0;
 
 	Precision lnT 		= log(Temp);
+	Precision Temp2		= Temp * Temp;
+	Precision Temp3		= Temp * Temp * Temp;
+	Precision Temp4		= Temp * Temp * Temp * Temp;
 	Precision a_tmp[7];
 
 	for (int k = 0; k < NumberOfMolecules; k++)
@@ -139,9 +127,9 @@ __forceinline__ __device__ void CalculateThermoDynamics(Precision& C_p, Precisio
 		for (int i = 0; i < 7; i++)
 			a_tmp[i]	= const_a[(2*k+RowOffset) * 7 + i];
 
-		C_p 			+= R * 		 (	a_tmp[0]  		  +	a_tmp[1] * Temp  		  +	a_tmp[2] * Temp * Temp   			  	+ a_tmp[3] * Temp * Temp * Temp 			 + a_tmp[4] * Temp * Temp * Temp * Temp		  ) * X_conc[k];
-		H[k] 			= R * Temp * (	a_tmp[0]    	  +	a_tmp[1] * Temp * 0.5 	  +	a_tmp[2] * Temp * Temp * 0.33333333   	+ a_tmp[3] * Temp * Temp * Temp * 0.25	 	 + a_tmp[4] * Temp * Temp * Temp * Temp * 0.2 ) + R * a_tmp[5];
-		S_0[k] 			= R * 		 (	a_tmp[0] * lnT    +	a_tmp[1] * Temp 		  + a_tmp[2] * Temp * Temp * 0.5  			+ a_tmp[3] * Temp * Temp * Temp * 0.33333333 + a_tmp[4] * Temp * Temp * Temp * Temp * 0.25  + a_tmp[6]);
+		C_p 			+= R * 		 (	a_tmp[0]  		  +	a_tmp[1] * Temp  		  +	a_tmp[2] * Temp2   			  	+ a_tmp[3] * Temp3 				 + a_tmp[4] * Temp4		  ) * X_conc[k];
+		H[k] 			= R * Temp * (	a_tmp[0]    	  +	a_tmp[1] * Temp * 0.5 	  +	a_tmp[2] * Temp2 * 0.33333333   + a_tmp[3] * Temp3 * 0.25	 	 + a_tmp[4] * Temp4 * 0.2 ) + R * a_tmp[5];
+		S_0[k] 			= R * 		 (	a_tmp[0] * lnT    +	a_tmp[1] * Temp 		  + a_tmp[2] * Temp2 * 0.5  		+ a_tmp[3] * Temp3 * 0.33333333  + a_tmp[4] * Temp4 * 0.25  + a_tmp[6]);
 	}
 }
 
@@ -218,16 +206,16 @@ __forceinline__ __device__ Precision PressureDependentReaction(Precision* sPAR, 
 //	Precision F_cent	= alfa;
 	Precision F_cent	= (1.0 - alfa) * exp(Temp * T_3_) + alfa * exp(Temp * T_1_) + exp(-T_2 / Temp);
 
-	Precision d			= 0.14;
+	// Precision d			= 0.14;
 	Precision log10F_c	= log10(F_cent);
 	Precision n			= 0.75 - 1.27 * log10F_c;
 	Precision c			= -0.4 - 0.67 * log10F_c;
 	Precision log10Pr	= log10(P_r);
-	Precision logF		= log10F_c / ( 1.0 + pow( (log10Pr + c) / (n - d * (log10Pr + c)), 2.0 ) );
-	Precision F 		= pow(10.0, logF);
+	Precision logF		= log10F_c / ( 1.0 + pow( (log10Pr + c) / (n - 0.14 * (log10Pr + c)), 2.0 ) );
+	// Precision F 		= pow(10.0, logF);
 
-	Precision k_f		= k_inf * P_r / (1.0 + P_r) * F;
-	return k_f;
+	// Precision k_f		= k_inf * P_r / (1.0 + P_r) * pow(10.0, logF);
+	return k_inf * P_r / (1.0 + P_r) * pow(10.0, logF);
 }
 
 template <class Precision>
@@ -236,7 +224,7 @@ __forceinline__ __device__ void Reactions(Precision* omega, const Precision& Tem
 
 	Precision q[NumberOfReactions];
 	for (int i = 0; i < NumberOfReactions; i++)
-		q[i] = 0.0;
+		q[i] = 0.0; //TODO: q[i]-k kiküszöbölése, omega[k]-t rögtön számolni
 
 	Precision k_f, k_b;
 
