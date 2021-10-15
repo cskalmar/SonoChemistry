@@ -92,40 +92,23 @@ __forceinline__ __device__ Precision ProdCoeffPow(Precision* vec_base, int* vec_
 template <class Precision>
 __forceinline__ __device__ void CalculateThermoDynamics(Precision& C_p, Precision* H, Precision* S_0, Precision* X_conc, const Precision& T, const Precision& R)
 {
-	Precision Temp;
-	int RowOffset;
-	if (T < const_TempRanges[0]){
-		Temp = const_TempRanges[0];
-		RowOffset = 1;}
-	else if (T > const_TempRanges[1]){
-		Temp = const_TempRanges[1];
-		RowOffset = 0;}
-	else if (T <= const_TempRanges[2]){
-		Temp = T;
-		RowOffset = 1;}
-	else {
-		Temp = T;
-		RowOffset = 0;}
-
-//	Temp				= (T < TempRangeLow) ? TempRangeLow : T;
-//	Temp				= (Temp > TempRangeHigh) ? TempRangeHigh : Temp;
-//	int RowOffset 		= (T <= TempRangeMid) ? 1 : 0;
-//	int RowOffset 		= (Temp <= TempRangeMid) ? 1 : 0;
+	Precision Temp	= T;
+	Temp 			= fmax(Temp, const_TempRanges[0]);
+	Temp 			= fmin(Temp, const_TempRanges[1]);
 
 	Precision lnT 		= log(Temp);
 	Precision Temp2		= Temp * Temp;
 	Precision Temp3		= Temp * Temp * Temp;
 	Precision Temp4		= Temp * Temp * Temp * Temp;
-	Precision a_tmp[7];
+	Precision* Coeff	= const_a;
+	if (Temp <= const_TempRanges[2]) Coeff = Coeff + 7 * NumberOfMolecules; //Shift to the low coefficients
 
 	for (int k = 0; k < NumberOfMolecules; k++)
 	{
-		for (int i = 0; i < 7; i++)
-			a_tmp[i]	= const_a[(2*k+RowOffset) * 7 + i];
-
-		C_p 			+= R * 		 (	a_tmp[0]  		  +	a_tmp[1] * Temp  		  +	a_tmp[2] * Temp2   			  	+ a_tmp[3] * Temp3 				 + a_tmp[4] * Temp4		  ) * X_conc[k];
-		H[k] 			= R * Temp * (	a_tmp[0]    	  +	a_tmp[1] * Temp * 0.5 	  +	a_tmp[2] * Temp2 * 0.33333333   + a_tmp[3] * Temp3 * 0.25	 	 + a_tmp[4] * Temp4 * 0.2 ) + R * a_tmp[5];
-		S_0[k] 			= R * 		 (	a_tmp[0] * lnT    +	a_tmp[1] * Temp 		  + a_tmp[2] * Temp2 * 0.5  		+ a_tmp[3] * Temp3 * 0.33333333  + a_tmp[4] * Temp4 * 0.25  + a_tmp[6]);
+		C_p 			+= R * 		 (	Coeff[0]  		  +	Coeff[1] * Temp  		  	+	Coeff[2] * Temp2   			  	+ Coeff[3] * Temp3 				+ Coeff[4] * Temp4		  		) * X_conc[k];
+		H[k]			= R * Temp * (	Coeff[0]		  + Coeff[1] * Temp * (1.0/2.0)	+	Coeff[2] * Temp2 * (1.0/3.0)	+ Coeff[3] * Temp3 * (1.0/4.0)	+ Coeff[4] * Temp4 * (1.0/5.0) 	) + R * Coeff[5];
+		S_0[k] 			= R * 		 (	Coeff[0] * lnT    +	Coeff[1] * Temp 		  	+	Coeff[2] * Temp2 * (1.0/2.0)	+ Coeff[3] * Temp3 * (1.0/3.0)  + Coeff[4] * Temp4 * (1.0/4.0)  + Coeff[6]);
+		Coeff 			= Coeff + 7;
 	}
 }
 
