@@ -146,7 +146,16 @@ PRECISION h_A[NumberOfReactions] = {1.4818E+24,	6.1650E+15,	4.7140E+18,	5.0712E+
 PRECISION h_b[NumberOfReactions] = {-2.5379,		-0.5000,	-1.0000,	-0.4860,	0.4400,		2.2642,			2.1133,			0.0000,		0.0000,		0.4201,			-1.2127,	2.2704,		1.8780,		2.3219,			0.0000,		-1.9249,	2.0000,		0.0000,		0.0000,		0.0000,			0.0000,		-0.6700,	0.0000,		0.0000,		0.0000,		0.0000,		0.0000,		0.0000,		0.0000,		0.5000,			0.5000,			0.5000,			0.5000,			0.5000};
 PRECISION h_E[NumberOfReactions] = {1.4808E+02,	0.0000E+00,	0.0000E+00,	1.9771E+04,	0.0000E+00,	-2.1881E+03,	-1.9919E+03,	2.0967E+02,	0.0000E+00,	-1.1629E+03,	7.5034E+02,	8.5289E+03,	3.8630E+03,	-4.1712E+03,	4.8671E+03,	1.1555E+04,	4.8671E+03,	3.8986E+02,	8.9116E+03,	-1.9983E+03,	1.9063E+04,	2.5990E+04,	9.3400E+02,	0.0000E+00,	8.3100E+02,	9.9400E+02,	4.0940E+03,	0.0000E+00,	7.3252E+03,	-1.0543E+03,	-5.4432E+02,	-9.3664E+02,	-2.0475E+02,	-5.8600E+02};
 
-PRECISION h_TempRanges[3] = {200.0, 6000.0, 1000.0};
+PRECISION h_TempRanges[3*NumberOfMolecules] = { 200.0, 6000.0, 1000.0,	\ 	/* O */
+												200.0, 6000.0, 1000.0,	\ 	/* H */
+												200.0, 6000.0, 1000.0,	\ 	/* H2 */
+												200.0, 6000.0, 1000.0,	\ 	/* OH */
+												200.0, 6000.0, 1000.0,	\ 	/* O2 */
+												200.0, 6000.0, 1000.0,	\ 	/* H2O */
+												200.0, 5000.0, 1000.0,	\ 	/* HO2 */
+												200.0, 6000.0, 1000.0,	\ 	/* H2O2 */
+												200.0, 6000.0, 1000.0,	\ 	/* O3 */
+												300.0, 6000.0, 1000.0	}; 	/* OHEX */
 
 cudaMemcpyToSymbol(const_a,                         &h_a,                       2*NumberOfMolecules*7 * sizeof(PRECISION));
 cudaMemcpyToSymbol(const_ThirdBodyMatrix,           &h_ThirdBodyMatrix,         NumberOfReactions * NumberOfMolecules * sizeof(PRECISION));
@@ -156,4 +165,4 @@ cudaMemcpyToSymbol(const_ReactionMatrix,            &h_ReactionMatrix,          
 cudaMemcpyToSymbol(const_A,                         &h_A,                       NumberOfReactions * sizeof(PRECISION));
 cudaMemcpyToSymbol(const_b,                         &h_b,                       NumberOfReactions * sizeof(PRECISION));
 cudaMemcpyToSymbol(const_E,                         &h_E,                       NumberOfReactions * sizeof(PRECISION));
-cudaMemcpyToSymbol(const_TempRanges,				&h_TempRanges,				3 * sizeof(PRECISION));
+cudaMemcpyToSymbol(const_TempRanges,				&h_TempRanges,				3*NumberOfMolecules * sizeof(PRECISION));

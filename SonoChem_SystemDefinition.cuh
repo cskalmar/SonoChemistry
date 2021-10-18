@@ -7,10 +7,7 @@
 
 // SYSTEM
 template <class Precision>
-__forceinline__ __device__ void PerThread_OdeFunction(\
-			int tid, int NT, \
-			Precision*    F, Precision*    X, Precision     T, \
-			Precision* cPAR, Precision* sPAR, int*      sPARi, Precision* ACC, int* ACCi)
+__forceinline__ __device__ void PerThread_OdeFunction(int tid, int NT, Precision* F, Precision* X, Precision T, Precision* cPAR, Precision* sPAR, int* sPARi, Precision* ACC, int* ACCi)
 {
 	for (int i = 0; i < NumberOfMolecules + 3 + 1; i++)
 		F[i] = 0.0;
@@ -25,13 +22,11 @@ __forceinline__ __device__ void PerThread_OdeFunction(\
 
 	Precision M 		= sum(X_conc, NumberOfMolecules);
 	Precision tmp		= 1.0 / M;
-	// Precision Rho_mean	= SumCoeffProd(X_conc, 	&sPAR[1], NumberOfMolecules);
 
 	Precision p			= M * sPAR[11] * Temp * 0.1;
 	Precision C_p_mean	= 0.0;
 	CalculateThermoDynamics(C_p_mean, H, S_0, X_conc, Temp, sPAR[11]);
 	C_p_mean			*= tmp;
-	// Precision C_v_mean	= C_p_mean - sPAR[11];
 
 	Precision lambda_mean = (X_conc[2] * sPAR[13] + X_conc[4] * sPAR[14] +  X_conc[5] * sPAR[15] +  X_conc[7] * sPAR[16]) * tmp;
 	Precision Heat		= ThermalConduction(X[0] * cPAR[15], X[1] * cPAR[14] * cPAR[15], lambda_mean, sPAR, Temp, C_p_mean * M);
@@ -63,129 +58,63 @@ __forceinline__ __device__ void PerThread_OdeFunction(\
 	for (int k = 0; k < NumberOfMolecules; k++)
 		F[k+3] 			*= tmp;
 
-	Precision d2Rdt2 = F[1] * cPAR[15] * cPAR[14] * cPAR[14];
-	Precision R		 = X[0] * cPAR[15];
-	Precision R_dot	 = X[1] * cPAR[15] * cPAR[14];
-	Precision V		 = 1.3333333333 * R * R * R * PI;
-	Precision dVdt	 = 3.0 * V * R_dot * rX0pc15;
+	if (ACCi[0] == 1)
+	{
+		Precision d2Rdt2 = F[1] * cPAR[15] * cPAR[14] * cPAR[14];
+		Precision R		 = X[0] * cPAR[15];
+		Precision R_dot	 = X[1] * cPAR[15] * cPAR[14];
+		Precision V		 = 1.3333333333 * R * R * R * PI;
+		Precision dVdt	 = 3.0 * V * R_dot * rX0pc15;
 
-	tmp						= 1.0 / sPAR[21];
-	F[NumberOfMolecules+3]	= -(p * (1.0 + R_dot * tmp) + R * tmp * dpdt) * dVdt;
-	F[NumberOfMolecules+3]	+= 4.0 * PI * (cPAR[13] / cPAR[14]) * (R * R_dot * R_dot + R * R * R_dot * d2Rdt2 * tmp);
-	F[NumberOfMolecules+3]	+= 4.0 * PI * tmp * R * R * R_dot * (R_dot * p + dpdt * R - 0.5 * sPAR[22] * R_dot * R_dot * R_dot - sPAR[22] * R * R_dot * d2Rdt2);
+		tmp						= 1.0 / sPAR[21];
+		F[NumberOfMolecules+3]	= -(p * (1.0 + R_dot * tmp) + R * tmp * dpdt) * dVdt;
+		F[NumberOfMolecules+3]	+= 4.0 * PI * (cPAR[13] / cPAR[14]) * (R * R_dot * R_dot + R * R * R_dot * d2Rdt2 * tmp);
+		F[NumberOfMolecules+3]	+= 4.0 * PI * tmp * R * R * R_dot * (R_dot * p + dpdt * R - 0.5 * sPAR[22] * R_dot * R_dot * R_dot - sPAR[22] * R * R_dot * d2Rdt2);
+	}
 }
 
 // EVENTS
 template <class Precision>
-__forceinline__ __device__ void PerThread_EventFunction(\
-			int tid, int NT, Precision* EF, \
-			Precision     T, Precision    dT, Precision*    TD, Precision*   X, \
-			Precision* cPAR, Precision* sPAR,       int* sPARi, Precision* ACC, int* ACCi)
+__forceinline__ __device__ void PerThread_EventFunction(int tid, int NT, Precision* EF, Precision  T, Precision dT, Precision* TD, Precision* X, Precision* cPAR, Precision* sPAR, int* sPARi, Precision* ACC, int* ACCi)
 {
 }
 
 template <class Precision>
-__forceinline__ __device__ void PerThread_ActionAfterEventDetection(\
-			int tid, int NT, int IDX, int& UDT, \
-			Precision    &T, Precision   &dT, Precision*    TD, Precision*   X, \
-			Precision* cPAR, Precision* sPAR, int*       sPARi, Precision* ACC, int* ACCi)
+__forceinline__ __device__ void PerThread_ActionAfterEventDetection(int tid, int NT, int IDX, int& UDT, Precision &T, Precision &dT, Precision* TD, Precision* X, Precision* cPAR, Precision* sPAR, int* sPARi, Precision* ACC, int* ACCi)
 {
 }
 
 // ACCESSORIES
 template <class Precision>
-__forceinline__ __device__ void PerThread_ActionAfterSuccessfulTimeStep(\
-			int tid, int NT, int& UDT, \
-			Precision&    T, Precision&   dT, Precision*    TD, Precision*   X, \
-			Precision* cPAR, Precision* sPAR, int*       sPARi, Precision* ACC, int* ACCi)
+__forceinline__ __device__ void PerThread_ActionAfterSuccessfulTimeStep(int tid, int NT, int& UDT, Precision& T, Precision& dT, Precision* TD, Precision* X, Precision* cPAR, Precision* sPAR, int* sPARi, Precision* ACC, int* ACCi)
 {
-	if (ACCi[0] == 1) //Transient
+	if (ACCi[0] == 1)
 	{
 		if (X[0] > ACC[0])
 		{
 			ACC[0] = X[0]; //x_1_local_max
-			Precision V 	= 1.3333333333 * (X[0] * cPAR[15] * 100.0) * (X[0] * cPAR[15] * 100.0) * (X[0] * cPAR[15] * 100.0) * PI;
+			Precision V 	= (4.0/3.0) * (X[0] * cPAR[15] * 100.0) * (X[0] * cPAR[15] * 100.0) * (X[0] * cPAR[15] * 100.0) * PI;
 			for (int k = 0; k < NumberOfMolecules; k++)
 				ACC[2+k] 	= X[k+3] * cPAR[16] * V; //yield_i_local
 		}
 	}
-	else //Converged
-	{
-		if (X[0] > ACC[0])
-		{
-			ACC[0] = X[0]; //x_1_local_max
-			Precision V 	= 1.3333333333 * (X[0] * cPAR[15] * 100.0) * (X[0] * cPAR[15] * 100.0) * (X[0] * cPAR[15] * 100.0) * PI;
-			for (int k = 0; k < NumberOfMolecules; k++)
-				ACC[2+k] 	= X[k+3] * cPAR[16] * V; //yield_i_local
-		}
-
-		if (X[2] > ACC[63])
-			ACC[63] = X[2]; // T_max
-	}
 }
 
 template <class Precision>
-__forceinline__ __device__ void PerThread_Initialization(\
-			int tid, int NT, int& DOIDX, \
-			Precision&    T, Precision&   dT, Precision*    TD, Precision*   X, \
-			Precision* cPAR, Precision* sPAR,       int* sPARi, Precision* ACC, int* ACCi)
+__forceinline__ __device__ void PerThread_Initialization(int tid, int NT, int& DOIDX, Precision& T, Precision& dT, Precision* TD, Precision* X, Precision* cPAR, Precision* sPAR, int* sPARi, Precision* ACC, int* ACCi)
 {
-	T      = TD[0]; // Reset the starting point of the simulation from the lower limit of the time domain
+	T      					= TD[0]; // Reset the starting point of the simulation from the lower limit of the time domain
 
-	X[NumberOfMolecules+3] = 0.0;
+	ACC[0]					= 0.0;
+	for (int k = 0; k < NumberOfMolecules; k++) ACC[k+2] = 0.0;
+	X[NumberOfMolecules+3]	= 0.0;
 }
 
 template <class Precision>
-__forceinline__ __device__ void PerThread_Finalization(\
-			int tid, int NT, int& DOIDX, \
-			Precision&    T, Precision&   dT, Precision*    TD, Precision*   X, \
-			Precision* cPAR, Precision* sPAR,       int* sPARi, Precision* ACC, int* ACCi)
+__forceinline__ __device__ void PerThread_Finalization(int tid, int NT, int& DOIDX, Precision& T, Precision& dT, Precision* TD, Precision* X, Precision* cPAR, Precision* sPAR, int* sPARi, Precision* ACC, int* ACCi)
 {
-	if (ACCi[0] == 1) //Transient
-	{
-		Precision Pi_w					= X[NumberOfMolecules+3];
-		ACC[52]	+= Pi_w / cPAR[14];
-
-		for (int k = 0; k < NumberOfMolecules; k++)
-		{
-			Precision yield_i_local		= ACC[2+k];
-
-			if (yield_i_local / ACC[52] > ACC[53+k])
-			{
-				ACC[53+k] 				= yield_i_local / ACC[52];
-				ACCi[1+k]++;
-			}
-		}
-
-		for (int k = 0; k < NumberOfMolecules + 2; k++)
-			ACC[k] = 0.0;
-	}
-	else //Converged
-	{
-		Precision Pi_w					= X[NumberOfMolecules+3];
-
-		for (int k = 0; k < NumberOfMolecules; k++)
-		{
-			Precision yield_i_local 	= ACC[2+k];
-
-			if (yield_i_local > ACC[12+k])
-				ACC[12+k] 				= yield_i_local; // yield_i_global
-
-			ACC[22+k] 					+= yield_i_local; //yield_i_avg-hoz
-
-			if (yield_i_local / Pi_w > ACC[32+k])
-				ACC[32+k] 				= yield_i_local / Pi_w; //yield_i/Pi_w global max
-
-			ACC[42+k] 					+= yield_i_local / Pi_w; //yield_i/Pi_w avg-hoz
-		}
-
-		if (ACC[0] > ACC[1])
-			ACC[1] 						= ACC[0]; //x1_global_max
-
-		ACC[0] = 0.0;
-		for (int k = 0; k < NumberOfMolecules; k++)
-			ACC[2+k]					= 0.0;
-	}
+	ACC[22] = fmax(ACC[0], ACC[22]); //x1 global max
+	for (int k = 0; k < NumberOfMolecules; k++)	ACC[2*k+2] = fmax(ACC[2*k+2], ACC[k+2]); //yield_i global max
 }
 
 #endif
