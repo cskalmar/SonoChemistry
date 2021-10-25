@@ -14,9 +14,9 @@ using namespace std;
 //-----------------------------------------------------------------------
 // Problem definition
 
-const int NumberOf_PA         = 2;
-const int NumberOf_f          = 2;
-const int NumberOf_RE         = 1;
+const int NumberOf_PA         = 2; //TODO
+const int NumberOf_f          = 2; //TODO
+const int NumberOf_RE         = 1; //TODO
 
 //-----------------------------------------------------------------------
 // Solver Configuration
@@ -28,8 +28,8 @@ const int NCP  = 17;     // NumberOfControlParameters
 const int NSP  = 23;     // NumberOfSharedParameters
 const int NISP = 0;      // NumberOfIntegerSharedParameters
 const int NE   = 0;      // NumberOfEvents
-const int NA   = 64;     // NumberOfAccessories
-const int NIA  = 11;     // NumberOfIntegerAccessories
+const int NA   = 64;     // NumberOfAccessories //TODO
+const int NIA  = 11;     // NumberOfIntegerAccessories //TODO
 const int NDO  = 0;   // NumberOfPointsOfDenseOutput
 
 //-----------------------------------------------------------------------
@@ -105,16 +105,16 @@ int main()
 //-----------------------------------------------------------------------
 //  Simulations
 	vector<PRECISION> PA_vec(NumberOf_PA, 0.0);
-		Linspace(PA_vec, 1.8e5, 1.8e5, NumberOf_PA);
+		Linspace(PA_vec, 1.8e5, 1.8e5, NumberOf_PA); //TODO
 		// Linspace(PA_vec, 2.0e5, 1.890196e5, NumberOf_PA);
 	vector<PRECISION> f_vec(NumberOf_f, 0.0);
 	//	Logspace(f_vec, 89.943e3, 1000.0e3, NumberOf_f);
-		Logspace(f_vec, 50.0e3, 50.0e3, NumberOf_f);
+		Logspace(f_vec, 50.0e3, 50.0e3, NumberOf_f); //TODO
 	vector<PRECISION> RE_vec(NumberOf_RE, 0.0);
-		Linspace(RE_vec, 8.0e-6, 8.0e-6, NumberOf_RE);
+		Linspace(RE_vec, 8.0e-6, 8.0e-6, NumberOf_RE); //TODO
 
 	vector< vector<PRECISION> > CollectedData;
-	CollectedData.resize( NT , vector<PRECISION>( 3 + 2 * NumberOfMolecules + 4 * NumberOfMolecules + 2 , 0.0 ) );
+	CollectedData.resize( NT , vector<PRECISION>( 3 + 2 * NumberOfMolecules + 4 * NumberOfMolecules + 2 , 0.0 ) ); //TODO: vector size Excel-ben először
 
     clock_t SimulationStart, TransientEnd, ConvergedEnd;
 	SimulationStart = clock();
@@ -122,7 +122,7 @@ int main()
     for (int LaunchCounter = 0; LaunchCounter < RE_vec.size(); LaunchCounter++)
     {
 		cout << "Filling solver object for R_E = " << RE_vec[LaunchCounter] * 1.0e6 << " mum..." << endl;
-		FillSolverObject(Solver_SC, PA_vec, f_vec, RE_vec[LaunchCounter]);
+		FillSolverObject(Solver_SC, PA_vec, f_vec, RE_vec[LaunchCounter]); //TODO: function
 		cout << "Solver object filled successfully." << endl << endl;
 		Solver_SC.SynchroniseFromHostToDevice(All);
 
@@ -133,18 +133,18 @@ int main()
 			CollectedData[tid][2] = Solver_SC.GetHost<PRECISION>(tid, ControlParameters, 15) * 1.0e6;   // R_E [mum]
 		}
 
-    	int TransientSimulations = 1;
+    	int TransientSimulations = 1; //TODO
     	int ConvergentSimulations = 1;
 
 		cout << "Simulation started with R_E = " << RE_vec[LaunchCounter] * 1.0e6 << " mum." << endl << endl;
 
-		cout << "Transient simulation started. Out of " << TransientSimulations << ":" << endl;
+		cout << "Transient simulation started." << endl;
     	for (int i = 0; i < TransientSimulations; i++)
     	{
     		Solver_SC.Solve();
     		Solver_SC.InsertSynchronisationPoint();
     		Solver_SC.SynchroniseSolver();
-			cout << i+1 << " ";
+			cout << TransientSimulations - i << " ";
     	}
 		TransientEnd = clock();
 		cout << endl << "Transient finished." << endl;
@@ -264,9 +264,7 @@ void FillSolverObject(ProblemSolver<NT,SD,NCP,NSP,NISP,NE,NA,NIA,NDO,SOLVER,PREC
 			for (int i = 0; i < 64; i++)
 				Solver.SetHost(ProblemNumber, Accessories, i, 0.0);
 
-			Solver.SetHost(ProblemNumber, IntegerAccessories, 0, 1);
-			for (int i = 1; i < 11; i++)
-				Solver.SetHost(ProblemNumber, IntegerAccessories, i, 0);
+			Solver.SetHost(ProblemNumber, IntegerAccessories, 0, 0);
 
 			ProblemNumber++;
 		}
