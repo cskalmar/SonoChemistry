@@ -90,22 +90,22 @@ __forceinline__ __device__ void PerThread_ActionAfterSuccessfulTimeStep(int tid,
 {
 	if (ACCi[0] == 1)
 	{
-		if (X[0] > ACC[0]) //Finding local maxima
+		if (X[0] > ACC[0]) //Finding local maximum
 		{
-			ACC[35]				= T; //t_max //TODO: dimension
+			ACC[35]				= T; //t_max_local //TODO: dimension
 			ACC[0] 				= X[0]; //x_1_local_max
-			Precision V_cPar16 	= cPAR[16] * (4.0/3.0) * (X[0] * cPAR[15] * 100.0) * (X[0] * cPAR[15] * 100.0) * (X[0] * cPAR[15] * 100.0) * PI; //cm^3
+			Precision V_cPAR16 	= cPAR[16] * (4.0/3.0) * (X[0] * cPAR[15] * 100.0) * (X[0] * cPAR[15] * 100.0) * (X[0] * cPAR[15] * 100.0) * PI; //cm^3
 			for (int k = 0; k < NumberOfMolecules; k++)
-				ACC[k+3] 		= X[k+3] * V_cPar16; //yield_i_local_max in moles
+				ACC[k+3] 		= X[k+3] * V_cPAR16; //yield_i_local_max in moles
 		}
 
-		if (X[0] < ACC[33])
+		if (X[0] < ACC[33]) //Finding local minimum
 		{
-			ACC[36]				= T; // t_min //TODO dimension
+			ACC[36]				= T; // t_min_local //TODO dimension
 			ACC[33]				= X[0]; //x_1_local_min
 		}
 
-		ACC[1] 		= fmax(ACC[1], X[2] * sPAR[0]); //T_max_global
+		ACC[1] 		= fmax(ACC[1], X[2] * sPAR[0]); //T_max_global in Kelvins
 	}
 }
 
@@ -116,6 +116,8 @@ __forceinline__ __device__ void PerThread_Initialization(int tid, int NT, int& D
 
 	ACC[0]			= 0.0; //x1_local max
 	ACC[33]			= 1.0; //x1_local_min to 1.0
+	ACC[35]			= 0.0; //t_max_local
+	ACC[36]			= 0.0; //t_min_local
 
 	for (int k = 0; k < NumberOfMolecules; k++)
 		ACC[k+3] 	= 0.0; //yield_i local maxima
@@ -130,9 +132,14 @@ __forceinline__ __device__ void PerThread_Finalization(int tid, int NT, int& DOI
 	{
 		Precision rPi_w	= 1.0 / X[NumberOfMolecules+3];
 
-		ACC[34]			= fmax(ACC[34], ACC[0] - ACC[33]); //(x1max_local - x1min_local) global max
+		if (ACC[0] / ACC[33] > ACC[34])
+		{
+			ACC[34]		= ACC[0] / ACC[33]; //x1_max/x1_min global max
+			ACC[37]		= (ACC[36] > ACC[35]) ? ACC[36] - ACC[35] : ACC[36] + 1 - ACC[35]; //t_c_global
+
+		}
+
 		ACC[22]			= fmax(ACC[0], ACC[22]); //x1_max_global
-		ACC[36]			= (ACC[36] > ACC[35]) ? ACC[36] - ACC[35] : ACC[36] + 1 - ACC[35]; //t_c
 
 		//Global yields
 		for (int k = 0; k < NumberOfMolecules; k++)
