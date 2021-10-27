@@ -25,11 +25,11 @@ const int NumberOf_RE         = 1; //TODO
 const int NT   = NumberOf_PA * NumberOf_f; 	 // NumberOfThreads
 const int SD   = NumberOfMolecules + 3 + 1;     // SystemDimension
 const int NCP  = 17;     // NumberOfControlParameters
-const int NSP  = 23;     // NumberOfSharedParameters
+const int NSP  = 9;     // NumberOfSharedParameters
 const int NISP = 0;      // NumberOfIntegerSharedParameters
 const int NE   = 0;      // NumberOfEvents
-const int NA   = 64;     // NumberOfAccessories //TODO
-const int NIA  = 11;     // NumberOfIntegerAccessories //TODO
+const int NA   = 39;     // NumberOfAccessories
+const int NIA  = 1;     // NumberOfIntegerAccessories //TODO
 const int NDO  = 0;   // NumberOfPointsOfDenseOutput
 
 //-----------------------------------------------------------------------
@@ -43,6 +43,8 @@ __constant__ PRECISION const_A[NumberOfReactions];
 __constant__ PRECISION const_b[NumberOfReactions];
 __constant__ PRECISION const_E[NumberOfReactions];
 __constant__ PRECISION const_TempRanges[3*NumberOfMolecules];
+__constant__ PRECISION const_lambda[NumberOfMolecules];
+__constant__ PRECISION const_W[NumberOfMolecules];
 
 //-----------------------------------------------------------------------
 // Includes
@@ -73,10 +75,6 @@ int main()
 	int SelectedDevice = SelectDeviceByClosestRevision(MajorRevision, MinorRevision);
 
 	PrintPropertiesOfSpecificDevice(SelectedDevice);
-
-//-----------------------------------------------------------------------
-// Constant memory copies
-#include "ConstantMemCopies.cuh"
 
 //-----------------------------------------------------------------------
 //  Solver object configuration
@@ -161,13 +159,13 @@ int main()
 		}
 		Solver_SC.SynchroniseFromHostToDevice(All);
 
-		cout << "Convergent simulation started. Out of " << ConvergentSimulations << ":" << endl;
+		cout << "Convergent simulation started." << endl;
     	for (int i = 0; i < ConvergentSimulations; i++)
     	{
     		Solver_SC.Solve();
     		Solver_SC.InsertSynchronisationPoint();
     		Solver_SC.SynchroniseSolver();
-			cout << i+1 << " " ;
+			cout << ConvergentSimulations - i << " ";
     	}
 
     	Solver_SC.SynchroniseFromDeviceToHost(All);
@@ -262,7 +260,7 @@ void FillSolverObject(ProblemSolver<NT,SD,NCP,NSP,NISP,NE,NA,NIA,NDO,SOLVER,PREC
 			Solver.SetHost(ProblemNumber, ActualTime, 0.0 );
 
 			for (int i = 0; i < 64; i++)
-				Solver.SetHost(ProblemNumber, Accessories, i, 0.0);
+				Solver.SetHost(ProblemNumber, Accessories, i, 0.0); //TODO
 
 			Solver.SetHost(ProblemNumber, IntegerAccessories, 0, 0);
 
@@ -272,20 +270,26 @@ void FillSolverObject(ProblemSolver<NT,SD,NCP,NSP,NISP,NE,NA,NIA,NDO,SOLVER,PREC
 
 	Parameters par;
 	Solver.SetHost(SharedParameters, 0, par.T_inf );
-	for (int i = 0; i < par.K; i++)
-		Solver.SetHost(SharedParameters, i+1, par.W[i] );
-	Solver.SetHost(SharedParameters, 11, par.R );
-	Solver.SetHost(SharedParameters, 12, par.P_inf );
-	Solver.SetHost(SharedParameters, 13, par.lambda[2] );
-	Solver.SetHost(SharedParameters, 14, par.lambda[4] );
-	Solver.SetHost(SharedParameters, 15, par.lambda[5] );
-	Solver.SetHost(SharedParameters, 16, par.lambda[7] );
-	Solver.SetHost(SharedParameters, 17, par.alfa_M );
-	Solver.SetHost(SharedParameters, 18, par.R_v );
-	Solver.SetHost(SharedParameters, 19, par.p_v_sat );
-	Solver.SetHost(SharedParameters, 20, par.R_c );
-	Solver.SetHost(SharedParameters, 21, par.c_L );
-	Solver.SetHost(SharedParameters, 22, par.ro_L );
+	Solver.SetHost(SharedParameters, 1, par.R );
+	Solver.SetHost(SharedParameters, 2, par.P_inf );
+	Solver.SetHost(SharedParameters, 3, par.alfa_M );
+	Solver.SetHost(SharedParameters, 4, par.R_v );
+	Solver.SetHost(SharedParameters, 5, par.p_v_sat );
+	Solver.SetHost(SharedParameters, 6, par.R_c );
+	Solver.SetHost(SharedParameters, 7, par.c_L );
+	Solver.SetHost(SharedParameters, 8, par.ro_L );
+
+	cudaMemcpyToSymbol(const_a,                         &par.h_a,                       2*NumberOfMolecules*7 * sizeof(PRECISION));
+	cudaMemcpyToSymbol(const_ThirdBodyMatrix,           &par.h_ThirdBodyMatrix,         NumberOfReactions * NumberOfMolecules * sizeof(PRECISION));
+	cudaMemcpyToSymbol(const_ReactionMatrix_forward,    &par.h_ReactionMatrix_forward,  NumberOfReactions * NumberOfMolecules * sizeof(int));
+	cudaMemcpyToSymbol(const_ReactionMatrix_backward,   &par.h_ReactionMatrix_backward, NumberOfReactions * NumberOfMolecules * sizeof(int));
+	cudaMemcpyToSymbol(const_ReactionMatrix,            &par.h_ReactionMatrix,          NumberOfReactions * NumberOfMolecules * sizeof(int));
+	cudaMemcpyToSymbol(const_A,                         &par.h_A,                       NumberOfReactions * sizeof(PRECISION));
+	cudaMemcpyToSymbol(const_b,                         &par.h_b,                       NumberOfReactions * sizeof(PRECISION));
+	cudaMemcpyToSymbol(const_E,                         &par.h_E,                       NumberOfReactions * sizeof(PRECISION));
+	cudaMemcpyToSymbol(const_TempRanges,				&par.h_TempRanges,				3*NumberOfMolecules * sizeof(PRECISION));
+	cudaMemcpyToSymbol(const_lambda,					&par.h_lambda,					NumberOfMolecules * sizeof(PRECISION));
+	cudaMemcpyToSymbol(const_W,							&par.h_W,						NumberOfMolecules * sizeof(PRECISION));
 }
 
 void Linspace(vector<PRECISION>& x, PRECISION B, PRECISION E, int N)

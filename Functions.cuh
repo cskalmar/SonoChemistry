@@ -131,9 +131,9 @@ __forceinline__ __device__ Precision ThermalConduction(const Precision& R, const
 template <class Precision>
 __forceinline__ __device__ Precision Evaporation(Precision* sPAR, const Precision& Temp, const Precision& x5p)
 {
-	Precision m_eva_kg 		= sPAR[17] * rsqrt(2.0 * PI * sPAR[18] * sPAR[0]) 	* sPAR[19];
-	Precision m_con_kg 		= sPAR[17] * rsqrt(2.0 * PI * sPAR[18] * Temp) 		* x5p;
-	Precision m_net_mol 	= 1.0e3 / sPAR[6] * (m_eva_kg - m_con_kg);
+	Precision m_eva_kg 		= sPAR[3] * rsqrt(2.0 * PI * sPAR[4] * sPAR[0]) 	* sPAR[5];
+	Precision m_con_kg 		= sPAR[3] * rsqrt(2.0 * PI * sPAR[4] * Temp) 		* x5p;
+	Precision m_net_mol 	= 1.0e3 / const_W[5] * (m_eva_kg - m_con_kg);
 	return m_net_mol;
 }
 
@@ -142,9 +142,9 @@ __forceinline__ __device__ Precision BackwardRate(Precision* sPAR, Precision* S_
 {
 	Precision DeltaS_0 	= SumCoeffProd(S_0, &const_ReactionMatrix[i * NumberOfMolecules], NumberOfMolecules);
 	Precision DeltaH_0 	= SumCoeffProd(H_0, &const_ReactionMatrix[i * NumberOfMolecules], NumberOfMolecules);
-	Precision r_Temp_R	= 1.0 / (sPAR[11] * Temp);
+	Precision r_Temp_R	= 1.0 / (sPAR[1] * Temp);
 	Precision K_p		= exp(DeltaS_0  * r_Temp_R * Temp - DeltaH_0 * r_Temp_R);
-	Precision K_c		= K_p * pow( sPAR[12] * 10.0  * r_Temp_R , sum(&const_ReactionMatrix[i * NumberOfMolecules], NumberOfMolecules) );
+	Precision K_c		= K_p * pow( sPAR[2] * 10.0  * r_Temp_R , sum(&const_ReactionMatrix[i * NumberOfMolecules], NumberOfMolecules) );
 	return k_f / K_c;
 }
 
@@ -155,7 +155,7 @@ __forceinline__ __device__ Precision PressureDependentReaction(Precision* sPAR, 
 	// Precision alfa;
 	// Precision T_1_, T_3_, T_2; // -1.0 / value for T_1 and T_3
 	Precision rTemp		= 1.0 / Temp;
-	Precision exponent	= -1.0 / sPAR[20] * rTemp;
+	Precision exponent	= -1.0 / sPAR[6] * rTemp;
 	Precision k_0, F_cent;
 	switch (i)
 	{
@@ -215,7 +215,7 @@ template <class Precision>
 __forceinline__ __device__ void Reactions(Precision* omega, const Precision& Temp, Precision* X_conc, Precision* sPAR, Precision* S_0, Precision* H_0)
 {
 	Precision k_f, k_b, q_i;
-	Precision exponent = -1.0 / (sPAR[20] * Temp);
+	Precision exponent = -1.0 / (sPAR[6] * Temp);
 
 	for (int i = 0; i < NumberOfReactions; i++)
 	{

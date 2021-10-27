@@ -20,9 +20,9 @@ void SetInitialConditions(Parameters& par, vector<double>& IC)
         IC[i+3] = X_0[i] * par.n_t_E / (4.0 / 3.0 * pow(IC[0] * par.R_E, 3) * PI) * 1.0e-6 / par.M_Eq;
 
     par.C.resize(17);
-    par.C[0] = par.ro_L * pow(par.R_E * par.f_1, 2);
-    par.C[1] = par.R_E * par.f_1 * par.ro_L * par.c_L;
-    par.C[2] = par.R_E * pow(par.f_1, 2) * par.ro_L * par.c_L;
+    par.C[0] = 1.0 / (par.ro_L * pow(par.R_E * par.f_1, 2));
+    par.C[1] = 1.0 / (par.R_E * par.f_1 * par.ro_L * par.c_L);
+    par.C[2] = 1.0 / (par.R_E * pow(par.f_1, 2) * par.ro_L * par.c_L);
     par.C[3] = par.R_E * par.f_1 / 3.0 / par.c_L;
     par.C[4] = par.R_E * par.f_1 / par.c_L;
     par.C[5] = 4.0 * par.mu_L / par.c_L / par.ro_L / par.R_E;
