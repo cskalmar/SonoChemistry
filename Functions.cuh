@@ -93,7 +93,7 @@ template <class Precision>
 __forceinline__ __device__ void CalculateThermoDynamics(Precision& C_p, Precision* H, Precision* S_0, Precision* X_conc, const Precision& T, const Precision& R)
 {
 	Precision Temp, Temp2, Temp3, Temp4, lnT;
-	Precision* Coeff		= const_a;
+	Precision* NASA			= const_a;
 	Precision* TempRanges	= const_TempRanges;
 
 	for (int k = 0; k < NumberOfMolecules; k++)
@@ -107,15 +107,15 @@ __forceinline__ __device__ void CalculateThermoDynamics(Precision& C_p, Precisio
 		Temp3		= Temp * Temp * Temp;
 		Temp4		= Temp * Temp * Temp * Temp;
 
-		if (Temp <= TempRanges[2]) Coeff = Coeff + 7 * NumberOfMolecules; //Shift to the low coefficients
+		if (Temp <= TempRanges[2]) NASA = NASA + 7 * NumberOfMolecules; //Shift to the low coefficients
 
-		C_p 		+= R * 		 (	Coeff[0]  		  +	Coeff[1] * Temp  		  	+	Coeff[2] * Temp2   			  	+ Coeff[3] * Temp3 				+ Coeff[4] * Temp4		  		) * X_conc[k];
-		H[k]		= R * Temp * (	Coeff[0]		  + Coeff[1] * Temp * (1.0/2.0)	+	Coeff[2] * Temp2 * (1.0/3.0)	+ Coeff[3] * Temp3 * (1.0/4.0)	+ Coeff[4] * Temp4 * (1.0/5.0) 	) + R * Coeff[5];
-		S_0[k] 		= R * 		 (	Coeff[0] * lnT    +	Coeff[1] * Temp 		  	+	Coeff[2] * Temp2 * (1.0/2.0)	+ Coeff[3] * Temp3 * (1.0/3.0)  + Coeff[4] * Temp4 * (1.0/4.0)  + Coeff[6]);
+		C_p 		+= R * 		 (	NASA[0]  	  +	NASA[1] * Temp  		  	+	NASA[2] * Temp2   		  	+ NASA[3] * Temp3 				+ NASA[4] * Temp4		  		)	* X_conc[k];
+		H[k]		= R * Temp * (	NASA[0]		  + NASA[1] * Temp * (1.0/2.0)	+	NASA[2] * Temp2 * (1.0/3.0)	+ NASA[3] * Temp3 * (1.0/4.0)	+ NASA[4] * Temp4 * (1.0/5.0) 	) 	+ R * NASA[5];
+		S_0[k] 		= R * 		 (	NASA[0] * lnT +	NASA[1] * Temp 		  		+	NASA[2] * Temp2 * (1.0/2.0)	+ NASA[3] * Temp3 * (1.0/3.0)	+ NASA[4] * Temp4 * (1.0/4.0)		+ NASA[6]);
 
-		if (Temp <= TempRanges[2]) Coeff = Coeff - 7 * NumberOfMolecules; //Shift back to the high coefficients
+		if (Temp <= TempRanges[2]) NASA = NASA - 7 * NumberOfMolecules; //Shift back to the high coefficients
 
-		Coeff 		= Coeff + 7;
+		NASA 		= NASA + 7;
 		TempRanges	= TempRanges + 3;
 	}
 }

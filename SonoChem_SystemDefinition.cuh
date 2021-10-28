@@ -92,39 +92,43 @@ __forceinline__ __device__ void PerThread_ActionAfterSuccessfulTimeStep(int tid,
 {
 	if (ACCi[0] == 1)
 	{
-		if (X[0] > ACC[0]) //Finding local maximum
+		if (X[0] > ACC[2]) //x1_max_local
 		{
-			ACC[35]				= T; //t_max_local //TODO: dimension
-			ACC[0] 				= X[0]; //x_1_local_max
+			ACC[2] 				= X[0];
+			ACC[6] 				= T; //tau_max_local
 			Precision V_cPAR16 	= cPAR[16] * (4.0/3.0) * (X[0] * cPAR[15] * 100.0) * (X[0] * cPAR[15] * 100.0) * (X[0] * cPAR[15] * 100.0) * PI; //cm^3
 			for (int k = 0; k < NumberOfMolecules; k++)
-				ACC[k+3] 		= X[k+3] * V_cPAR16; //yield_i_local_max in moles
+				ACC[k+14] 		= X[k+3] * V_cPAR16; //yield_k_local_max in moles
 		}
 
-		if (X[0] < ACC[33]) //Finding local minimum
+		if (X[0] < ACC[3]) //x1_min_local
 		{
-			ACC[36]				= T; // t_min_local //TODO dimension
-			ACC[33]				= X[0]; //x_1_local_min
+			ACC[3] 				= X[0];
+			ACC[7] 				= T; //tau_min_local
 		}
 
-		ACC[1] 		= fmax(ACC[1], X[2] * sPAR[0]); //T_max_global in Kelvins
+		ACC[11]					= fmax(X[2], ACC[11]); //T_max_local
 	}
 }
 
 template <class Precision>
 __forceinline__ __device__ void PerThread_Initialization(int tid, int NT, int& DOIDX, Precision& T, Precision& dT, Precision* TD, Precision* X, Precision* cPAR, Precision* sPAR, int* sPARi, Precision* ACC, int* ACCi)
 {
-	T      			= TD[0]; // Reset the starting point of the simulation from the lower limit of the time domain
+	T     		 			= TD[0]; // Reset the starting point of the simulation from the lower limit of the time domain
 
-	ACC[0]			= 0.0; //x1_local max
-	ACC[33]			= 1.0; //x1_local_min to 1.0
-	ACC[35]			= 0.0; //t_max_local
-	ACC[36]			= 0.0; //t_min_local
+	if (ACCi[0] == 1)
+	{
+		X[NumberOfMolecules+3]	= 0.0; //Pi_w
 
-	for (int k = 0; k < NumberOfMolecules; k++)
-		ACC[k+3] 	= 0.0; //yield_i local maxima
+		//Initializing local maxima/minima
+		int Indices[]			= {2, 6, 7, 8, 11};
+		for (auto k : Indices)
+			ACC[k] 				= 0.0;
+		for (int k = 14; k < 24; k++)
+			ACC[k]				= 0.0;
 
-	X[NumberOfMolecules+3]	= 0.0; //Pi_w
+		ACC[3]					= 1.0e10;
+	}
 }
 
 template <class Precision>
@@ -132,22 +136,29 @@ __forceinline__ __device__ void PerThread_Finalization(int tid, int NT, int& DOI
 {
 	if (ACCi[0] == 1)
 	{
-		Precision rPi_w	= 1.0 / X[NumberOfMolecules+3];
+		ACC[0]			= fmax(ACC[2], ACC[0]); //x1 global max
+		ACC[1]			+= ACC[2]; //for x1 global avg
 
-		if (ACC[0] / ACC[33] > ACC[34])
-		{
-			ACC[34]		= ACC[0] / ACC[33]; //x1_max/x1_min global max
-			ACC[37]		= (ACC[36] > ACC[35]) ? ACC[36] - ACC[35] : ACC[36] + 1 - ACC[35]; //t_c_global
+		ACC[4]			= fmax(ACC[2] / ACC[3], ACC[4]); //x1_max_local/x1_min_local global max
+		ACC[5]			+= ACC[2] / ACC[3]; //for x1max/x1min global avg
 
-		}
+		ACC[8]			= (ACC[7] > ACC[6]) ? ACC[7] - ACC[6] : ACC[7] + 1 - ACC[6]; // tau_c local
 
-		ACC[22]			= fmax(ACC[0], ACC[22]); //x1_max_global
+		Precision tmp	= ACC[2] * ACC[2] * ACC[2] / ACC[8];
+		ACC[9]			= fmax(tmp, ACC[9]); //(x1max^3/tau_c) global max
+		ACC[10]			+= tmp; //for (x1max^3/tau_c) global avg
 
-		//Global yields
+		ACC[12]			= fmax(ACC[11], ACC[12]); //x3 global max
+		ACC[13]			+= ACC[11]; //for x3 global avg
+
+		tmp				= 1.0 / X[NumberOfMolecules+3]; //Pi_w
 		for (int k = 0; k < NumberOfMolecules; k++)
 		{
-			ACC[k+13] 	= fmax(ACC[k+13], ACC[k+3]); //yield_i global max
-			ACC[k+23]	= fmax(ACC[k+23], ACC[k+3] * rPi_w ); //yield_i/Pi_w global max
+			ACC[k+24]	= fmax(ACC[k+14], ACC[k+24]); //Y_k global max
+			ACC[k+34]	+= ACC[k+14]; //for Y_k global avg
+
+			ACC[k+44]	= fmax(ACC[k+14] * tmp, ACC[k+44]); //Y_k/Pi_w global max
+			ACC[k+54]	+= ACC[k+14] * tmp; //for Y_k/Pi_w global avg
 		}
 	}
 }

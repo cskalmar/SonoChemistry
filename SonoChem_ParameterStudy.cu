@@ -10,6 +10,7 @@ using namespace std;
 #define PI 3.14159265358979323846
 #define NumberOfMolecules 10
 #define NumberOfReactions 34
+#define NumberOfAccessories 64
 
 //-----------------------------------------------------------------------
 // Problem definition
@@ -22,15 +23,15 @@ const int NumberOf_RE         = 1; //TODO
 // Solver Configuration
 #define SOLVER RKCK45     // RK4, RKCK45
 #define PRECISION double  // float, double
-const int NT   = NumberOf_PA * NumberOf_f; 	 // NumberOfThreads
+const int NT   = NumberOf_PA * NumberOf_f; 	 	// NumberOfThreads
 const int SD   = NumberOfMolecules + 3 + 1;     // SystemDimension
-const int NCP  = 17;     // NumberOfControlParameters
-const int NSP  = 9;     // NumberOfSharedParameters
-const int NISP = 0;      // NumberOfIntegerSharedParameters
-const int NE   = 0;      // NumberOfEvents
-const int NA   = 39;     // NumberOfAccessories
-const int NIA  = 1;     // NumberOfIntegerAccessories //TODO
-const int NDO  = 0;   // NumberOfPointsOfDenseOutput
+const int NCP  = 17;     						// NumberOfControlParameters
+const int NSP  = 9;     						// NumberOfSharedParameters
+const int NISP = 0;     						// NumberOfIntegerSharedParameters
+const int NE   = 0;      						// NumberOfEvents
+const int NA   = NumberOfAccessories;     		// NumberOfAccessories
+const int NIA  = 1;     						// NumberOfIntegerAccessories
+const int NDO  = 0;   							// NumberOfPointsOfDenseOutput
 
 //-----------------------------------------------------------------------
 // Constant memory allocation
@@ -112,7 +113,7 @@ int main()
 		Linspace(RE_vec, 8.0e-6, 8.0e-6, NumberOf_RE); //TODO
 
 	vector< vector<PRECISION> > CollectedData;
-	CollectedData.resize( NT , vector<PRECISION>( 3 + 2 * NumberOfMolecules + 4 * NumberOfMolecules + 2 , 0.0 ) ); //TODO: vector size Excel-ben először
+	CollectedData.resize( NT , vector<PRECISION>(51 , 0.0));
 
     clock_t SimulationStart, TransientEnd, ConvergedEnd;
 	SimulationStart = clock();
@@ -149,14 +150,7 @@ int main()
 		cout << "Transient simulation time: " << 1.0*(TransientEnd-SimulationStart) / CLOCKS_PER_SEC << " s." << endl << endl;
 
 		Solver_SC.SynchroniseFromDeviceToHost(All);
-		for (int tid = 0; tid < NT; tid++)
-		{
-			Solver_SC.SetHost(tid, IntegerAccessories, 0, 1);
-			for (int col = 3; col < 13; col++)
-				CollectedData[tid][col] = Solver_SC.GetHost<PRECISION>(tid, Accessories, col+50); //yield_i/Pi_j global max
-			for (int col = 13; col < 23; col++)
-				CollectedData[tid][col] = Solver_SC.GetHost<PRECISION>(tid, IntegerAccessories, col-12); //trans. num.
-		}
+		for (int tid = 0; tid < NT; tid++) Solver_SC.SetHost(tid, IntegerAccessories, 0, 1);
 		Solver_SC.SynchroniseFromHostToDevice(All);
 
 		cout << "Convergent simulation started." << endl;
@@ -169,32 +163,41 @@ int main()
     	}
 
     	Solver_SC.SynchroniseFromDeviceToHost(All);
-		for (int tid = 0; tid < NT; tid++)
-		{
-			for (int col = 23; col < 33; col++)
-				CollectedData[tid][col] = Solver_SC.GetHost<PRECISION>(tid, Accessories, col-11); // Yield_i global max
-
-			for (int col = 33; col < 43; col++)
-				CollectedData[tid][col] = Solver_SC.GetHost<PRECISION>(tid, Accessories, col-11) / ConvergentSimulations; // Yield_i avg
-
-			for (int col = 43; col < 53; col++)
-				CollectedData[tid][col] = Solver_SC.GetHost<PRECISION>(tid, Accessories, col-11); // Yield_i_local/Pi_w global max
-
-			for (int col = 53; col < 63; col++)
-				CollectedData[tid][col] = Solver_SC.GetHost<PRECISION>(tid, Accessories, col-11) / ConvergentSimulations; // Yield_i_local/Pi_w avg
-
-			CollectedData[tid][63] 		= Solver_SC.GetHost<PRECISION>(tid, Accessories, 1);
-			CollectedData[tid][64] 		= Solver_SC.GetHost<PRECISION>(tid, Accessories, 63);
-		}
-
 	    ConvergedEnd = clock();
 		cout << endl << "Convergent finished." << endl;
-	    cout << "Converged simulation time: " << 1.0*(ConvergedEnd-TransientEnd) / CLOCKS_PER_SEC << " s." << endl << endl;
+	    cout << "Converged simulation time: " << 1.0*(ConvergedEnd-TransientEnd) / CLOCKS_PER_SEC << " s." << endl;
+
+		double rCS	= 1.0 / ConvergentSimulations;
+		for (int tid = 0; tid < NT; tid++)
+		{
+			CollectedData[tid][3] 	= Solver_SC.GetHost<PRECISION>(tid, Accessories, 0) - 1.0; // Relative expansion global max
+			CollectedData[tid][4] 	= Solver_SC.GetHost<PRECISION>(tid, Accessories, 1) * rCS - 1.0; // Relative expansion global avg
+
+			CollectedData[tid][5] 	= Solver_SC.GetHost<PRECISION>(tid, Accessories, 4); // Compression ratio global max
+			CollectedData[tid][6] 	= Solver_SC.GetHost<PRECISION>(tid, Accessories, 5) * rCS; // Compression ratio global avg
+
+			CollectedData[tid][7] 	= Solver_SC.GetHost<PRECISION>(tid, Accessories, 9); // Compression speed global max (dimensionless)
+			// CollectedData[tid][7] = Solver_SC.GetHost<PRECISION>(tid, Accessories, 9) * pow((Solver_SC.GetHost<PRECISION>(tid, ControlParameters, 15) * 1.0e6, 3.0)) * Solver_SC.GetHost<PRECISION>(tid, ControlParameters, 14); // Compression speed global max (mum^3/s)
+			CollectedData[tid][8]	= Solver_SC.GetHost<PRECISION>(tid, Accessories, 10) * rCS; // Compression speed global avg (dimensionless)
+			// CollectedData[tid][8] = Solver_SC.GetHost<PRECISION>(tid, Accessories, 10) * rCS * pow((Solver_SC.GetHost<PRECISION>(tid, ControlParameters, 15) * 1.0e6, 3.0)) * Solver_SC.GetHost<PRECISION>(tid, ControlParameters, 14); // Compression speed global avg (mum^3/s)
+
+			CollectedData[tid][9] 	= Solver_SC.GetHost<PRECISION>(tid, Accessories, 12) 		* Solver_SC.GetHost<PRECISION>(SharedParameters, 0); // Max temperature global max (K)
+			CollectedData[tid][10] 	= Solver_SC.GetHost<PRECISION>(tid, Accessories, 13) * rCS 	* Solver_SC.GetHost<PRECISION>(SharedParameters, 0); // Max temperature global avg (K)
+
+			for (int k = 0; k < NumberOfMolecules; k++)
+			{
+				CollectedData[tid][k+11]	= Solver_SC.GetHost<PRECISION>(tid, Accessories, k+24); //Yield_k global max
+				CollectedData[tid][k+21]	= Solver_SC.GetHost<PRECISION>(tid, Accessories, k+34) * rCS; //Yield_k global avg
+
+				CollectedData[tid][k+31]	= Solver_SC.GetHost<PRECISION>(tid, Accessories, k+44); //Yield_k/Pi_w global max
+				CollectedData[tid][k+41]	= Solver_SC.GetHost<PRECISION>(tid, Accessories, k+54) * rCS; //Yield_k/Pi_w global avg
+			}
+		}
 
 		stringstream StreamFilename;
 		StreamFilename.precision(2);
 		StreamFilename.setf(ios::fixed);
-		StreamFilename << "Results/RE_" << RE_vec[LaunchCounter] * 1.0e6 << "_cmem.txt";
+		StreamFilename << "Results/RE_" << RE_vec[LaunchCounter] * 1.0e6 << ".txt";
 
 		string Filename = StreamFilename.str();
 		remove( Filename.c_str() );
@@ -259,8 +262,8 @@ void FillSolverObject(ProblemSolver<NT,SD,NCP,NSP,NISP,NE,NA,NIA,NDO,SOLVER,PREC
 			Solver.SetHost(ProblemNumber, TimeDomain, 1, 1.0 );
 			Solver.SetHost(ProblemNumber, ActualTime, 0.0 );
 
-			for (int i = 0; i < 64; i++)
-				Solver.SetHost(ProblemNumber, Accessories, i, 0.0); //TODO
+			for (int i = 0; i < NumberOfAccessories; i++)
+				Solver.SetHost(ProblemNumber, Accessories, i, 0.0);
 
 			Solver.SetHost(ProblemNumber, IntegerAccessories, 0, 0);
 
