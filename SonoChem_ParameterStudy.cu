@@ -15,9 +15,9 @@ using namespace std;
 //-----------------------------------------------------------------------
 // Problem definition
 
-const int NumberOf_PA         = 2; //TODO
-const int NumberOf_f          = 2; //TODO
-const int NumberOf_RE         = 1; //TODO
+const int NumberOf_PA         = 512;
+const int NumberOf_f          = 512;
+const int NumberOf_RE         = 7;
 
 //-----------------------------------------------------------------------
 // Solver Configuration
@@ -104,16 +104,15 @@ int main()
 //-----------------------------------------------------------------------
 //  Simulations
 	vector<PRECISION> PA_vec(NumberOf_PA, 0.0);
-		Linspace(PA_vec, 1.8e5, 1.8e5, NumberOf_PA); //TODO
-		// Linspace(PA_vec, 2.0e5, 1.890196e5, NumberOf_PA);
+		Linspace(PA_vec, 1.0e5, 2.0e5, NumberOf_PA);
 	vector<PRECISION> f_vec(NumberOf_f, 0.0);
-	//	Logspace(f_vec, 89.943e3, 1000.0e3, NumberOf_f);
-		Logspace(f_vec, 50.0e3, 50.0e3, NumberOf_f); //TODO
+		Logspace(f_vec, 20.0e3, 50.0e3, NumberOf_f);
 	vector<PRECISION> RE_vec(NumberOf_RE, 0.0);
-		Linspace(RE_vec, 8.0e-6, 8.0e-6, NumberOf_RE); //TODO
+		Linspace(RE_vec, 14.0e-6, 2.0e-6, NumberOf_RE);
 
 	vector< vector<PRECISION> > CollectedData;
-	CollectedData.resize( NT , vector<PRECISION>(51 , 0.0));
+	int CollectedDataSize	= 51;
+	CollectedData.resize( NT , vector<PRECISION>(CollectedDataSize , 0.0));
 
     clock_t SimulationStart, TransientEnd, ConvergedEnd;
 	SimulationStart = clock();
@@ -121,7 +120,7 @@ int main()
     for (int LaunchCounter = 0; LaunchCounter < RE_vec.size(); LaunchCounter++)
     {
 		cout << "Filling solver object for R_E = " << RE_vec[LaunchCounter] * 1.0e6 << " mum..." << endl;
-		FillSolverObject(Solver_SC, PA_vec, f_vec, RE_vec[LaunchCounter]); //TODO: function
+		FillSolverObject(Solver_SC, PA_vec, f_vec, RE_vec[LaunchCounter]);
 		cout << "Solver object filled successfully." << endl << endl;
 		Solver_SC.SynchroniseFromHostToDevice(All);
 
@@ -132,18 +131,18 @@ int main()
 			CollectedData[tid][2] = Solver_SC.GetHost<PRECISION>(tid, ControlParameters, 15) * 1.0e6;   // R_E [mum]
 		}
 
-    	int TransientSimulations = 1; //TODO
-    	int ConvergentSimulations = 1;
+    	int TransientSimulations = 16;
+    	int ConvergentSimulations = 4;
 
 		cout << "Simulation started with R_E = " << RE_vec[LaunchCounter] * 1.0e6 << " mum." << endl << endl;
 
 		cout << "Transient simulation started." << endl;
     	for (int i = 0; i < TransientSimulations; i++)
     	{
+			cout << TransientSimulations - i << " ";
     		Solver_SC.Solve();
     		Solver_SC.InsertSynchronisationPoint();
     		Solver_SC.SynchroniseSolver();
-			cout << TransientSimulations - i << " ";
     	}
 		TransientEnd = clock();
 		cout << endl << "Transient finished." << endl;
@@ -156,10 +155,10 @@ int main()
 		cout << "Convergent simulation started." << endl;
     	for (int i = 0; i < ConvergentSimulations; i++)
     	{
+			cout << ConvergentSimulations - i << " ";
     		Solver_SC.Solve();
     		Solver_SC.InsertSynchronisationPoint();
     		Solver_SC.SynchroniseSolver();
-			cout << ConvergentSimulations - i << " ";
     	}
 
     	Solver_SC.SynchroniseFromDeviceToHost(All);
@@ -210,9 +209,9 @@ int main()
 
 		for (int tid = 0; tid < NT; tid++)
 			{
-				for (int col = 0; col < 65; col++)
+				for (int col = 0; col < CollectedDataSize; col++)
 				{
-					if ( col < (65-1) )
+					if ( col < (CollectedDataSize-1) )
 					{
 						DataFile.width(Width); DataFile << CollectedData[tid][col] << ',';
 					} else
