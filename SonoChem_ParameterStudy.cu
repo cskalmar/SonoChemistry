@@ -106,7 +106,7 @@ int main()
 	vector<PRECISION> PA_vec(NumberOf_PA, 0.0);
 		Linspace(PA_vec, 1.0e5, 2.0e5, NumberOf_PA);
 	vector<PRECISION> f_vec(NumberOf_f, 0.0);
-		Logspace(f_vec, 20.0e3, 50.0e3, NumberOf_f);
+		Logspace(f_vec, 20.0e3, 1000.0e3, NumberOf_f);
 	vector<PRECISION> RE_vec(NumberOf_RE, 0.0);
 		Linspace(RE_vec, 14.0e-6, 2.0e-6, NumberOf_RE);
 
@@ -230,11 +230,6 @@ int main()
     cout << "Total simulation time: " << 1.0*(ConvergedEnd-SimulationStart) / CLOCKS_PER_SEC << " s" << endl << endl;
 
 	cout << "Test finished!" << endl << endl;
-
-	for (int i = 0; i < SD; i++)
-	{
-		cout << "x" << i << ":\t" << Solver_SC.GetHost<PRECISION>(0, ActualState, i) << endl;
-	}
 }
 
 // AUXILIARY FUNCTION -----------------------------------------------------------------------------
