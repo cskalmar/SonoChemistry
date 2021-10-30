@@ -15,8 +15,8 @@ using namespace std;
 //-----------------------------------------------------------------------
 // Problem definition
 
-const int NumberOf_PA         = 512;
-const int NumberOf_f          = 512;
+const int NumberOf_PA         = 256;
+const int NumberOf_f          = 256;
 const int NumberOf_RE         = 7;
 
 //-----------------------------------------------------------------------
