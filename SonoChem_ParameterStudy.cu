@@ -131,7 +131,7 @@ int main()
 			CollectedData[tid][2] = Solver_SC.GetHost<PRECISION>(tid, ControlParameters, 15) * 1.0e6;   // R_E [mum]
 		}
 
-    	int TransientSimulations = 16;
+    	int TransientSimulations = 8;
     	int ConvergentSimulations = 4;
 
 		cout << "Simulation started with R_E = " << RE_vec[LaunchCounter] * 1.0e6 << " mum." << endl << endl;
