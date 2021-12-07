@@ -38,7 +38,7 @@ public:
     PRECISION T_E;
     PRECISION n_t_E;
     PRECISION M_Eq;
-    vector<PRECISION> C;
+    std::vector<PRECISION> C;
 
     PRECISION h_a[2*NumberOfMolecules*7] = \
     {

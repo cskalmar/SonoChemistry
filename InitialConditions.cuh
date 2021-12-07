@@ -1,7 +1,7 @@
 #ifndef INITIALCONDITIONS_H
 #define INITIALCONDITIONS_H
 
-void SetInitialConditions(Parameters& par, vector<double>& IC)
+void SetInitialConditions(Parameters& par, std::vector<double>& IC)
 {
     par.p_E = par.P_inf + 2.0 * par.sigma / par.R_E;
     par.V_E = 4.0 / 3.0 * pow(par.R_E,3) * PI;
@@ -13,7 +13,7 @@ void SetInitialConditions(Parameters& par, vector<double>& IC)
     IC[1] = 0.0;
     IC[2] = 1.0;
 
-    vector<double> X_0(par.K, 0.0);
+    std::vector<double> X_0(par.K, 0.0);
     X_0[5] = par.p_v_sat / par.p_E;
     X_0[4] = 1.0 - X_0[5];
     for (int i = 0; i < par.K; i++)

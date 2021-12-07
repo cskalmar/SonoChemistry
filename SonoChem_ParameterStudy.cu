@@ -5,7 +5,7 @@
 #include <sstream>
 #include <fstream>
 
-using namespace std;
+// using namespace std;
 
 #define PI 3.14159265358979323846
 #define NumberOfMolecules 10
@@ -15,9 +15,9 @@ using namespace std;
 //-----------------------------------------------------------------------
 // Problem definition
 
-const int NumberOf_PA         = 256;
-const int NumberOf_f          = 256;
-const int NumberOf_RE         = 7;
+const int NumberOf_PA         = 16;
+const int NumberOf_f          = 16;
+const int NumberOf_RE         = 1;
 
 //-----------------------------------------------------------------------
 // Solver Configuration
@@ -58,9 +58,9 @@ __constant__ PRECISION const_W[NumberOfMolecules];
 
 //-----------------------------------------------------------------------
 
-void Linspace(vector<PRECISION>&, PRECISION, PRECISION, int);
-void Logspace(vector<PRECISION>&, PRECISION, PRECISION, int);
-void FillSolverObject(ProblemSolver<NT,SD,NCP,NSP,NISP,NE,NA,NIA,NDO,SOLVER,PRECISION>&, const vector<PRECISION>&, const vector<PRECISION>&, const PRECISION&);
+void Linspace(std::vector<PRECISION>&, PRECISION, PRECISION, int);
+void Logspace(std::vector<PRECISION>&, PRECISION, PRECISION, int);
+void FillSolverObject(ProblemSolver<NT,SD,NCP,NSP,NISP,NE,NA,NIA,NDO,SOLVER,PRECISION>&, const std::vector<PRECISION>&, const std::vector<PRECISION>&, const PRECISION&);
 
 int main()
 {
@@ -103,25 +103,25 @@ int main()
 
 //-----------------------------------------------------------------------
 //  Simulations
-	vector<PRECISION> PA_vec(NumberOf_PA, 0.0);
+	std::vector<PRECISION> PA_vec(NumberOf_PA, 0.0);
 		Linspace(PA_vec, 1.0e5, 2.0e5, NumberOf_PA);
-	vector<PRECISION> f_vec(NumberOf_f, 0.0);
+	std::vector<PRECISION> f_vec(NumberOf_f, 0.0);
 		Logspace(f_vec, 20.0e3, 1000.0e3, NumberOf_f);
-	vector<PRECISION> RE_vec(NumberOf_RE, 0.0);
+	std::vector<PRECISION> RE_vec(NumberOf_RE, 0.0);
 		Linspace(RE_vec, 14.0e-6, 2.0e-6, NumberOf_RE);
 
-	vector< vector<PRECISION> > CollectedData;
+	std::vector< std::vector<PRECISION> > CollectedData;
 	int CollectedDataSize	= 51;
-	CollectedData.resize( NT , vector<PRECISION>(CollectedDataSize , 0.0));
+	CollectedData.resize( NT , std::vector<PRECISION>(CollectedDataSize , 0.0));
 
     clock_t SimulationStart, TransientEnd, ConvergedEnd;
 	SimulationStart = clock();
 
     for (int LaunchCounter = 0; LaunchCounter < RE_vec.size(); LaunchCounter++)
     {
-		cout << "Filling solver object for R_E = " << RE_vec[LaunchCounter] * 1.0e6 << " mum..." << endl;
+		std::cout << "Filling solver object for R_E = " << RE_vec[LaunchCounter] * 1.0e6 << " mum..." << std::endl;
 		FillSolverObject(Solver_SC, PA_vec, f_vec, RE_vec[LaunchCounter]);
-		cout << "Solver object filled successfully." << endl << endl;
+		std::cout << "Solver object filled successfully." << std::endl << std::endl;
 		Solver_SC.SynchroniseFromHostToDevice(All);
 
 		for (int tid = 0; tid < NT; tid++)
@@ -131,31 +131,32 @@ int main()
 			CollectedData[tid][2] = Solver_SC.GetHost<PRECISION>(tid, ControlParameters, 15) * 1.0e6;   // R_E [mum]
 		}
 
-    	int TransientSimulations = 8;
+    	int TransientSimulations = 4;
     	int ConvergentSimulations = 4;
 
-		cout << "Simulation started with R_E = " << RE_vec[LaunchCounter] * 1.0e6 << " mum." << endl << endl;
+		std::cout << "Simulation started with R_E = " << RE_vec[LaunchCounter] * 1.0e6 << " mum." << std::endl << std::endl;
 
-		cout << "Transient simulation started." << endl;
+		std::cout << "Transient simulation started." << std::endl;
     	for (int i = 0; i < TransientSimulations; i++)
     	{
-			cout << TransientSimulations - i << " ";
+			std::cout << TransientSimulations - i << " ";
     		Solver_SC.Solve();
     		Solver_SC.InsertSynchronisationPoint();
     		Solver_SC.SynchroniseSolver();
     	}
 		TransientEnd = clock();
-		cout << endl << "Transient finished." << endl;
-		cout << "Transient simulation time: " << 1.0*(TransientEnd-SimulationStart) / CLOCKS_PER_SEC << " s." << endl << endl;
+		std::cout << std::endl << "Transient finished." << std::endl;
+		std::cout << "Transient simulation time: " << 1.0*(TransientEnd-SimulationStart) / CLOCKS_PER_SEC << " s = " << 1.0*(TransientEnd-SimulationStart) / CLOCKS_PER_SEC / 60.0 << " min." << std::endl << std::endl;
 
 		Solver_SC.SynchroniseFromDeviceToHost(All);
-		for (int tid = 0; tid < NT; tid++) Solver_SC.SetHost(tid, IntegerAccessories, 0, 1);
+		for (int tid = 0; tid < NT; tid++)
+			Solver_SC.SetHost(tid, IntegerAccessories, 0, 1);
 		Solver_SC.SynchroniseFromHostToDevice(All);
 
-		cout << "Convergent simulation started." << endl;
+		std::cout << "Convergent simulation started." << std::endl;
     	for (int i = 0; i < ConvergentSimulations; i++)
     	{
-			cout << ConvergentSimulations - i << " ";
+			std::cout << ConvergentSimulations - i << " ";
     		Solver_SC.Solve();
     		Solver_SC.InsertSynchronisationPoint();
     		Solver_SC.SynchroniseSolver();
@@ -163,8 +164,8 @@ int main()
 
     	Solver_SC.SynchroniseFromDeviceToHost(All);
 	    ConvergedEnd = clock();
-		cout << endl << "Convergent finished." << endl;
-	    cout << "Converged simulation time: " << 1.0*(ConvergedEnd-TransientEnd) / CLOCKS_PER_SEC << " s." << endl;
+		std::cout << std::endl << "Convergent finished." << std::endl;
+	    std::cout << "Converged simulation time: " << 1.0*(ConvergedEnd-TransientEnd) / CLOCKS_PER_SEC << " s = " << 1.0*(ConvergedEnd-TransientEnd) / CLOCKS_PER_SEC / 60.0 << " min." << std::endl;
 
 		double rCS	= 1.0 / ConvergentSimulations;
 		for (int tid = 0; tid < NT; tid++)
@@ -193,19 +194,19 @@ int main()
 			}
 		}
 
-		stringstream StreamFilename;
+		std::stringstream StreamFilename;
 		StreamFilename.precision(2);
-		StreamFilename.setf(ios::fixed);
+		StreamFilename.setf(std::ios::fixed);
 		StreamFilename << "Results/RE_" << RE_vec[LaunchCounter] * 1.0e6 << ".txt";
 
-		string Filename = StreamFilename.str();
+		std::string Filename = StreamFilename.str();
 		remove( Filename.c_str() );
 
-		ofstream DataFile;
+		std::ofstream DataFile;
 		DataFile.open ( Filename.c_str(), std::fstream::app );
 		int Width = 18;
 		DataFile.precision(10);
-		DataFile.flags(ios::scientific);
+		DataFile.flags(std::ios::scientific);
 
 		for (int tid = 0; tid < NT; tid++)
 			{
@@ -224,17 +225,17 @@ int main()
 
 		DataFile.close();
 
-		cout << "Simulation finished for R_E = " << RE_vec[LaunchCounter] * 1.0e6 << " mum. Filename: " << Filename << endl << endl;
+		std::cout << "Simulation finished for R_E = " << RE_vec[LaunchCounter] * 1.0e6 << " mum. Filename: " << Filename << std::endl << std::endl;
     }
 
-    cout << "Total simulation time: " << 1.0*(ConvergedEnd-SimulationStart) / CLOCKS_PER_SEC << " s" << endl << endl;
+    std::cout << "Total simulation time: " << 1.0*(ConvergedEnd-SimulationStart) / CLOCKS_PER_SEC << " s = " << 1.0*(ConvergedEnd-SimulationStart) / CLOCKS_PER_SEC / 60.0 << " min." << std::endl << std::endl;
 
-	cout << "Test finished!" << endl << endl;
+	std::cout << "Test finished!" << std::endl << std::endl;
 }
 
 // AUXILIARY FUNCTION -----------------------------------------------------------------------------
 
-void FillSolverObject(ProblemSolver<NT,SD,NCP,NSP,NISP,NE,NA,NIA,NDO,SOLVER,PRECISION>& Solver, const vector<PRECISION>& PA_vec, const vector<PRECISION>& f_vec, const PRECISION& R_E)
+void FillSolverObject(ProblemSolver<NT,SD,NCP,NSP,NISP,NE,NA,NIA,NDO,SOLVER,PRECISION>& Solver, const std::vector<PRECISION>& PA_vec, const std::vector<PRECISION>& f_vec, const PRECISION& R_E)
 {
 	int ProblemNumber = 0;
 
@@ -243,7 +244,7 @@ void FillSolverObject(ProblemSolver<NT,SD,NCP,NSP,NISP,NE,NA,NIA,NDO,SOLVER,PREC
 		for (auto const& f_act: f_vec)
 		{
 			Parameters par(PA_act, f_act, R_E);
-			vector<PRECISION> IC(par.K + 3 + 1, 0.0);
+			std::vector<PRECISION> IC(par.K + 3 + 1, 0.0);
 			SetInitialConditions(par, IC);
 
 			for (int i = 0; i < IC.size(); i++)
@@ -289,7 +290,7 @@ void FillSolverObject(ProblemSolver<NT,SD,NCP,NSP,NISP,NE,NA,NIA,NDO,SOLVER,PREC
 	cudaMemcpyToSymbol(const_W,							&par.h_W,						NumberOfMolecules * sizeof(PRECISION));
 }
 
-void Linspace(vector<PRECISION>& x, PRECISION B, PRECISION E, int N)
+void Linspace(std::vector<PRECISION>& x, PRECISION B, PRECISION E, int N)
 {
     PRECISION Increment;
 
@@ -307,7 +308,7 @@ void Linspace(vector<PRECISION>& x, PRECISION B, PRECISION E, int N)
 	}
 }
 
-void Logspace(vector<PRECISION>& x, PRECISION B, PRECISION E, int N)
+void Logspace(std::vector<PRECISION>& x, PRECISION B, PRECISION E, int N)
 {
     x[0] = B;
 
